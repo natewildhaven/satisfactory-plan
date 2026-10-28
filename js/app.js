@@ -168,7 +168,7 @@
     const tierNum = pi; // phase index matches the game tier number
     return window.ALTS.filter(function (a) {
       if (a.tier > tierNum) return false;
-      return a.rank === 1 ? a.tier >= tierNum - 3 : a.rank === 2 && a.tier === tierNum;
+      return a.rank === 1 ? a.tier >= tierNum - 3 : a.rank === 2 && a.tier >= tierNum - 2;
     }).map(function (a) {
       const m = {
         id: "alt:" + a.name, kind: "alts", optional: true, time: 20, altQuest: a.name,
@@ -297,7 +297,7 @@
 
   function missionBody(id, opts) {
     const inf = info(id);
-    if (!inf) return '<div class="card">This mission no longer applies.</div>';
+    if (!inf) return '<div class="card">This quest no longer applies.</div>';
     const m = inf.m;
     const done = isDone(m);
     const s = stepsOf(m);
@@ -330,11 +330,11 @@
     h += '<details class="notes"' + (state.notes[id] ? " open" : "") + '><summary>📝 My notes</summary><textarea id="note-' + esc(id) + '" data-note="' + esc(id) + '" rows="3" placeholder="Where you built it, coordinates, what to fix later…">' + esc(state.notes[id] || "") + "</textarea></details>";
     h += '<div class="row" style="margin-top:14px">';
     if (!done) {
-      h += '<button class="btn primary" data-done="' + id + '">✓ Mark mission done</button>';
+      h += '<button class="btn primary" data-done="' + id + '">✓ Mark quest done</button>';
       if (!state.skipped[id]) h += '<button class="btn" data-skip="' + id + '">Skip for now</button>';
       else h += '<button class="btn" data-unskip="' + id + '">Unskip</button>';
       if (m.upgradeOf) h += '<button class="btn" data-dismiss="' + id + '">Not worth it</button>';
-    } else h += '<button class="btn" data-undo="' + id + '">↺ Untick mission</button>';
+    } else h += '<button class="btn" data-undo="' + id + '">↺ Untick quest</button>';
     h += "</div></div>";
     return h;
   }
@@ -586,12 +586,12 @@
     const drag = opts && opts.drag;
     let h = '<div class="' + cls + '" draggable="' + (drag ? "true" : "false") + '" data-row="' + m.id + '" data-tier="' + inf.phase.id + '">';
     if (drag) h += '<span class="grip" aria-hidden="true">⋮⋮</span>';
-    h += '<input type="checkbox" title="Tick the whole mission" data-mission="' + m.id + '"' + (done ? " checked" : "") + ">";
+    h += '<input type="checkbox" title="Tick the whole quest" data-mission="' + m.id + '"' + (done ? " checked" : "") + ">";
     h += '<div class="name" data-open="' + m.id + '"><span class="kind-ic" title="' + esc(kindLabel(m.kind)) + '">' + KIND_ICON[m.kind] + "</span> " + esc(m.title) +
       '<div class="meta">' + esc(m.goal || "") + partial + lock + (state.skipped[m.id] ? " · skipped" : "") + "</div></div>";
     h += '<span class="row-tags">';
     if (m.time) h += '<span class="tag">~' + hours(m.time) + "</span>";
-    if (m.optional) h += '<span class="tag side-tag">side</span>';
+    if (m.optional) h += '<span class="tag side-tag">' + esc(kindLabel(m.kind)) + "</span>";
     h += "</span>";
     if (drag) h += '<span class="move"><button class="icon-btn" data-move="up" data-id="' + m.id + '" aria-label="Move up">▲</button><button class="icon-btn" data-move="down" data-id="' + m.id + '" aria-label="Move down">▼</button></span>';
     return h + "</div>";

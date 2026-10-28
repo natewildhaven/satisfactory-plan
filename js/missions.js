@@ -4,7 +4,7 @@
 // (focus picker or drag), but never ahead of what they `requires`.
 // `optional` missions don't block the next tier.
 //
-// kind: milestone | production | power | elevator | logistics | alts | explore | mam | gear
+// kind: milestone | production | power | elevator | logistics | alts | explore | mam | gear | architecture
 // time: rough minutes of play
 // calc: { targets, supplied, useAlts, forceAlts }
 //   targets  - default rates per minute; editable on the goal board
@@ -27,6 +27,7 @@ window.FOCUS = [
   { id: "explore", label: "Exploration", icon: "🧭" },
   { id: "mam", label: "MAM research", icon: "🔬" },
   { id: "gear", label: "Vehicles & gear", icon: "🛻" },
+  { id: "architecture", label: "Architecture", icon: "🏗" },
 ];
 
 window.PHASES = [
@@ -122,6 +123,51 @@ window.PHASES = [
           "Note any **Power Slugs** (glowing blue, yellow or purple blobs). You'll want them in Tier 1.",
         ],
       },
+      {
+        id: "p0-arch-plan", kind: "architecture", time: 10, optional: true,
+        title: "Pick your main base spot",
+        goal: "A flat area marked for the main base",
+        steps: [
+          "Find a flat area near the HUB with room to grow, ideally near water.",
+          "Stamp it on the map. Your starter modules can stay where they are. Later you'll build up, not out.",
+        ],
+      },
+      {
+        id: "p0-crash1", kind: "explore", time: 15, optional: true,
+        title: "Find your first crash site",
+        goal: "One crash site stamped",
+        steps: [
+          "Look for smoke and debris around the start area. Stamp the crash site on your map.",
+          "Note what it needs to open (power or parts). You'll research its hard drive once the MAM is built.",
+        ],
+      },
+      {
+        id: "p0-portable", kind: "gear", time: 10, optional: true, requires: ["p0-hub2-4"],
+        title: "Try it: Portable Miners on 3 nodes",
+        goal: "3 Portable Miners collecting ore",
+        steps: [
+          "Craft 2 more Portable Miners at the Equipment Workshop and drop them on iron, copper and limestone.",
+          "Empty them when you pass by. They're slow, but free ore while you hand-craft.",
+        ],
+      },
+      {
+        id: "p0-biomass", kind: "power", time: 15, optional: true, requires: ["p0-hub6"],
+        title: "Stock 200 Biomass",
+        goal: "200 Biomass in a box by the burners",
+        steps: [
+          "Collect leaves and wood, then craft Biomass at the Craft Bench.",
+          "Keep 200 in a storage box next to the burners so the power doesn't run out mid-build.",
+        ],
+      },
+      {
+        id: "p0-berries", kind: "explore", time: 10, optional: true,
+        title: "Snack run: berries, nuts and mushrooms",
+        goal: "10 Paleberries + 10 Beryl Nuts",
+        steps: [
+          "Pick Paleberries (red bushes) and Beryl Nuts (shrubs near trees). They heal you.",
+          "Keep a few: they're the first samples for the MAM Nutrients tree.",
+        ],
+      },
     ],
   },
   {
@@ -205,6 +251,57 @@ window.PHASES = [
         steps: [
           "Research **Paleberry** (2), **Beryl Nut** (5) and **Bacon Agaric** (1) as you find them.",
           "Then **Nutritional Processor** (25 Modular Frame, 50 Steel Pipe, 500 Wire) and **Nutritional Inhaler** once you have steel later.",
+        ],
+      },
+      {
+        id: "p1-arch-grid", kind: "architecture", time: 30, optional: true, requires: ["p1-base"],
+        title: "Lay a foundation grid for the main base",
+        goal: "An 8×8 foundation platform",
+        steps: [
+          "Build an 8×8 platform of 8 m foundations at your main base spot.",
+          "Everything you build there from now on snaps to this grid, which keeps blueprints and floors lined up.",
+        ],
+      },
+      {
+        id: "p1-arch-lookout", kind: "architecture", time: 10, optional: true, requires: ["p1-base"],
+        title: "Build a Lookout Tower on high ground",
+        goal: "A lookout over your area",
+        steps: [
+          "Place a Lookout Tower on the highest point near base and climb it to scout for nodes and crash sites.",
+        ],
+      },
+      {
+        id: "p1-scan", kind: "gear", time: 15, optional: true, requires: ["p1-field"],
+        title: "Try it: the Object Scanner",
+        goal: "Scanned for every sample you can",
+        steps: [
+          "Craft the Object Scanner and cycle through what it can find.",
+          "Every new MAM tree you open adds another option to it.",
+        ],
+      },
+      {
+        id: "p1-crash3", kind: "explore", time: 40, optional: true,
+        title: "Find 3 crash sites",
+        goal: "3 crash sites stamped",
+        steps: [
+          "Sweep in a wide circle around base. Stamp each site and note what it needs to open.",
+        ],
+      },
+      {
+        id: "p1-storage", kind: "logistics", time: 20, optional: true, requires: ["p1-logistics"],
+        title: "Storage wall by the HUB",
+        goal: "One labelled container per part",
+        steps: [
+          "Line up one Storage Container per part (plates, rods, screws, wire, cable, concrete) next to the HUB.",
+          "Feed each from its module with the overflow splitter in front.",
+        ],
+      },
+      {
+        id: "p1-lift", kind: "architecture", time: 15, optional: true, requires: ["p1-logistics"],
+        title: "Try conveyor lifts",
+        goal: "One belt runs up a level",
+        steps: [
+          "Send one module's output up a level with a Conveyor Lift. It's your first step towards building vertically.",
         ],
       },
     ],
@@ -303,6 +400,94 @@ window.PHASES = [
         goal: "Factory Cart bought and driven",
         steps: [
           "Buy the **FICSIT Factory Cart** in the AWESOME Shop (10 coupons). It's the quickest way around a big factory floor.",
+        ],
+      },
+      {
+        id: "p2-rip", kind: "production", time: 30, optional: true, requires: ["p2-parts"],
+        title: "Build Module: Reinforced Iron Plate",
+        goal: "RIP for the Tier 3 milestones (250 needed)",
+        steps: [
+          "Coal Power and Enhanced Asset Security need 250 RIP between them. Build this on its own iron node.",
+        ],
+        calc: {"targets":  {"Reinforced Iron Plate":  5}, "useAlts":  ["Alternate: Cast Screws", "Alternate: Stitched Iron Plate"]},
+      },
+      {
+        id: "p2-rotor", kind: "production", time: 30, optional: true, requires: ["p2-parts"],
+        title: "Build Module: Rotor",
+        goal: "Rotors for Tier 3 (300 needed)",
+        steps: [
+          "Coal Power, Basic Steel and Vehicular Transport need about 300 Rotors. Build this on its own iron node.",
+        ],
+        calc: {"targets":  {"Rotor":  4}, "useAlts":  ["Alternate: Cast Screws"]},
+      },
+      {
+        id: "p2-frames", kind: "production", time: 30, optional: true, requires: ["p2-parts"],
+        title: "Build Module: Modular Frame",
+        goal: "Modular Frames for Tier 3 (75 needed)",
+        steps: [
+          "Basic Steel and Vehicular Transport need 75 Modular Frames. Build this so you don't hand-craft them.",
+        ],
+        calc: {"targets":  {"Modular Frame":  2}, "useAlts":  ["Alternate: Cast Screws"]},
+      },
+      {
+        id: "p2-sheet", kind: "production", time: 20, optional: true, requires: ["p2-parts"],
+        title: "Build Module: Copper Sheet",
+        goal: "Copper Sheets for AI Limiters and Hypertubes",
+        steps: [
+          "Small add-on to your copper module.",
+        ],
+        calc: {"targets":  {"Copper Sheet":  10}},
+      },
+      {
+        id: "p2-biofuel", kind: "power", time: 20, optional: true, requires: ["p2-clear"],
+        title: "Solid Biofuel for the burners",
+        goal: "Burners run on Solid Biofuel",
+        steps: [
+          "Solid Biofuel burns longer than Biomass: 4/min keeps a 30 MW burner going.",
+          "Chainsaw a forest, feed leaves into the constructors below, and fill the burners.",
+        ],
+        calc: {"targets":  {"Solid Biofuel":  12}},
+      },
+      {
+        id: "p2-arch-walk", kind: "architecture", time: 15, optional: true, requires: ["p2-sink"],
+        title: "Shop: Industrial Walkways",
+        goal: "Walkways over your belts",
+        steps: [
+          "Buy **Industrial Walkways** in the AWESOME Shop (5 coupons) and lay a walkway above your belts.",
+        ],
+      },
+      {
+        id: "p2-arch-holes", kind: "architecture", time: 15, optional: true, requires: ["p2-sink"],
+        title: "Shop: tidy belt routing",
+        goal: "Belts go through walls and ceilings cleanly",
+        steps: [
+          "Buy **Conveyor Wall Hole** and **Conveyor Ceiling Mount** (1 coupon each).",
+          "Re-route one module's belts through walls or along the ceiling.",
+        ],
+      },
+      {
+        id: "p2-mam-fabric", kind: "mam", time: 25, optional: true, requires: ["p1-field"],
+        title: "MAM: Mycelia → Fabric → Parachute",
+        goal: "Parachute unlocked",
+        steps: [
+          "**Mycelia** (5 Mycelia), **Fabric** (25 Mycelia, 100 Biomass), **Parachute** (10 Fabric, 50 Cable).",
+          "Mycelia grows on the ground in damp, shaded areas.",
+        ],
+      },
+      {
+        id: "p2-spheres", kind: "explore", time: 30, optional: true,
+        title: "Mercer Sphere hunt: 8 total",
+        goal: "8 Mercer Spheres collected",
+        steps: [
+          "Keep the scanner on Mercer Spheres while you travel to caterium.",
+        ],
+      },
+      {
+        id: "p2-slugs", kind: "explore", time: 30, optional: true, requires: ["p1-slugs"],
+        title: "Find 5 Blue Power Slugs",
+        goal: "5 slugs turned into Power Shards",
+        steps: [
+          "Slugs sit in caves and on cliffs. Turn them into shards at the Craft Bench.",
         ],
       },
     ],
@@ -456,6 +641,62 @@ window.PHASES = [
           "**Experimental Power Generation** (25 Sulfur, 50 Modular Frame, 100 Rotor) is on this branch too.",
         ],
       },
+      {
+        id: "p3-security", kind: "gear", time: 10, optional: true,
+        title: "Milestone: Enhanced Asset Security",
+        goal: "Every Tier 3 milestone done",
+        steps: [
+          "Turn in **Enhanced Asset Security**: 100 Reinforced Iron Plate, 600 Iron Rod, 1500 Wire. It unlocks the Xeno-Basher; in Peaceful mode it's just for completeness.",
+        ],
+      },
+      {
+        id: "p3-blade", kind: "gear", time: 20, optional: true,
+        title: "Try it: Blade Runners",
+        goal: "Faster running and higher jumps",
+        steps: [
+          "MAM Caterium tree: **Blade Runners** (50 Silica, 10 Modular Frame). Needs **Silica** from the Quartz tree.",
+        ],
+      },
+      {
+        id: "p3-arch-coal", kind: "architecture", time: 30, optional: true, requires: ["p3-coalplant"],
+        title: "Dress up the coal plant",
+        goal: "Walls, a roof and lights on the coal plant",
+        steps: [
+          "Put the generators on foundations, add walls and a roof, and light the walkway between them.",
+        ],
+      },
+      {
+        id: "p3-arch-signs", kind: "architecture", time: 20, optional: true, requires: ["p2-sink"],
+        title: "Shop: label your modules",
+        goal: "Every module has a sign",
+        steps: [
+          "Buy the **Label Sign Bundle** (2 coupons). Put a sign on each module with what it makes and at what rate.",
+        ],
+      },
+      {
+        id: "p3-coal2", kind: "power", time: 45, optional: true, requires: ["p3-coalplant"], produces: 600,
+        title: "Second coal plant (+600 MW)",
+        goal: "1200 MW of coal power",
+        steps: [
+          "Copy your coal plant at another coal node with water. Same numbers: 120 coal/min, 3 Water Extractors, 8 generators.",
+        ],
+      },
+      {
+        id: "p3-crash", kind: "explore", time: 40, optional: true,
+        title: "Find 3 more crash sites",
+        goal: "6 crash sites visited in total",
+        steps: [
+          "Take a different direction from last time. Open the ones you can and stamp the rest.",
+        ],
+      },
+      {
+        id: "p3-mam-poles", kind: "mam", time: 15, optional: true,
+        title: "MAM: Power Poles Mk.2",
+        goal: "More connections per pole",
+        steps: [
+          "Caterium tree: **Power Poles Mk.2** (300 Quickwire).",
+        ],
+      },
     ],
   },
   {
@@ -556,11 +797,68 @@ window.PHASES = [
       {
         id: "p4-mam-caterium", kind: "mam", time: 40, optional: true,
         title: "MAM: Caterium tree, part 2",
-        goal: "Zipline, Blade Runners, Power Poles Mk.2, High-Speed Connector",
+        goal: "Zipline and High-Speed Connector",
         steps: [
           "**Zipline** (100 Quickwire, 50 Cable): ride along power lines.",
-          "**Blade Runners** (50 Silica, 10 Modular Frame): run faster and jump higher.",
-          "**Power Poles Mk.2** (300 Quickwire), **Caterium Electronics** (100 Quickwire), **High-Speed Connector** (500 Quickwire, 50 Plastic, after oil).",
+          "**Caterium Electronics** (100 Quickwire) and **High-Speed Connector** (500 Quickwire, 50 Plastic, after oil).",
+        ],
+      },
+      {
+        id: "p4-arch-2floor", kind: "architecture", time: 60, optional: true, requires: ["p4-sp"],
+        title: "Your first two-floor factory",
+        goal: "A module built on two floors",
+        steps: [
+          "Rebuild the Smart Plating module (or any module) using its floor plan: smelting on the ground floor, everything else above.",
+          "Run the lifts up through Conveyor Lift Floor Holes (Shop, 1 coupon).",
+        ],
+      },
+      {
+        id: "p4-arch-frames", kind: "architecture", time: 20, optional: true, requires: ["p2-sink"],
+        title: "Shop: Structural Frame Set",
+        goal: "Glass or frame floors you can see through",
+        steps: [
+          "Buy the **Structural Frame Set** (10 coupons) and use frame foundations for an upper floor.",
+        ],
+      },
+      {
+        id: "p4-arch-lights", kind: "architecture", time: 15, optional: true, requires: ["p2-sink"],
+        title: "Shop: Flood Lights",
+        goal: "Factories lit at night",
+        steps: [
+          "Buy **Flood Lights** (5 coupons) and light up your busiest area.",
+        ],
+      },
+      {
+        id: "p4-motor", kind: "production", time: 40, optional: true, requires: ["p4-advsteel"],
+        title: "Build Module: Motor",
+        goal: "Motors for Tier 5 (about 250 needed)",
+        steps: [
+          "Oil Processing, Jetpack and Petroleum Power need about 250 Motors together. Steel pipe comes from the steel outpost.",
+        ],
+        calc: {"targets":  {"Motor":  2.5}, "supplied":  ["Steel Pipe"], "useAlts":  ["Alternate: Steel Rotor", "Alternate: Cast Screws"]},
+      },
+      {
+        id: "p4-depot-exp", kind: "logistics", time: 20, optional: true, requires: ["p3-depot"],
+        title: "Depot Expansion (200%)",
+        goal: "Twice as much fits in the Depot",
+        steps: [
+          "MAM: **Depot Expansion (200%)** (3 Mercer Sphere, 47 SAM Fluctuator).",
+        ],
+      },
+      {
+        id: "p4-spheres", kind: "explore", time: 40, optional: true,
+        title: "Mercer Sphere hunt: 15 total",
+        goal: "15 Mercer Spheres collected",
+        steps: [
+          "Sweep an area you haven't visited yet.",
+        ],
+      },
+      {
+        id: "p4-shards", kind: "explore", time: 20, optional: true,
+        title: "Bank 10 Power Shards",
+        goal: "10 shards ready for overclocking",
+        steps: [
+          "Collect slugs of any colour and turn them into shards. Blue = 1, yellow = 2, purple = 5.",
         ],
       },
     ],
@@ -677,6 +975,72 @@ window.PHASES = [
         steps: [
           "MAM Caterium tree: **High-Speed Connector** (500 Quickwire, 50 Plastic) → **Geothermal Generator** (100 High-Speed Connector, 1000 Quickwire, 50 Motor).",
           "Find geysers with the scanner and build on them. Output varies by geyser purity and swings up and down, so pair them with Power Storage.",
+        ],
+      },
+      {
+        id: "p5-arch-stilts", kind: "architecture", time: 40, optional: true, requires: ["p5-plastic"],
+        title: "Raise the oil outpost on pillars",
+        goal: "Oil outpost on a raised platform",
+        steps: [
+          "Buy a **Pillar Set** (2 coupons) and build the outpost on a raised platform, so pipes and belts run underneath.",
+        ],
+      },
+      {
+        id: "p5-arch-pipes", kind: "architecture", time: 15, optional: true, requires: ["p5-plastic"],
+        title: "Shop: tidy pipes",
+        goal: "Pipes through walls and along supports",
+        steps: [
+          "Buy **Pipeline Wall Attachments** (2 coupons) and re-route the oil outpost's pipes through walls.",
+        ],
+      },
+      {
+        id: "p5-truck2", kind: "logistics", time: 45, optional: true, requires: ["p5-truck"],
+        title: "Second truck route",
+        goal: "Another part trucked at an exact rate",
+        steps: [
+          "Pick something your base pulls from far away (coal, quartz or sulfur ingots).",
+          "Same setup as before: Buffer Rule at both ends, time a loop, run the Route calculator, add it to My routes.",
+        ],
+      },
+      {
+        id: "p5-packaged", kind: "logistics", time: 30, optional: true, requires: ["p5-pack", "p5-fuelpower"],
+        title: "Packaged Fuel for the Jetpack",
+        goal: "A steady supply of Packaged Fuel",
+        steps: [
+          "Build this at the fuel plant. Fuel comes straight off the refinery.",
+        ],
+        calc: {"targets":  {"Packaged Fuel":  10}, "supplied":  ["Fuel"]},
+      },
+      {
+        id: "p5-mam-rifle", kind: "mam", time: 20, optional: true, requires: ["p5-oilms"],
+        title: "MAM: Smokeless Powder and the Rifle",
+        goal: "Rifle unlocked (just to try it)",
+        steps: [
+          "Sulfur tree: **Smokeless Powder** (100 Black Powder, 50 Plastic), **The Rifle** (50 Smokeless Powder, 100 Motor, 200 Rubber).",
+        ],
+      },
+      {
+        id: "p5-mam-signal", kind: "mam", time: 15, optional: true, requires: ["p5-circuit"],
+        title: "MAM: Signal Systems",
+        goal: "Next Quartz node done",
+        steps: [
+          "Quartz tree: **Signal Systems** (5 Crystal Oscillator, 5 Circuit Board).",
+        ],
+      },
+      {
+        id: "p5-geysers", kind: "explore", time: 30, optional: true,
+        title: "Find 3 geysers",
+        goal: "3 geysers stamped for geothermal power",
+        steps: [
+          "Geysers puff steam from the ground. Stamp them for the Geothermal side quest.",
+        ],
+      },
+      {
+        id: "p5-biome", kind: "explore", time: 45, optional: true,
+        title: "Visit a biome you haven't seen",
+        goal: "A new part of the map explored",
+        steps: [
+          "Pick a direction you haven't been and drive until the landscape changes. Stamp anything useful.",
         ],
       },
     ],
@@ -885,12 +1249,12 @@ window.PHASES = [
         goal: "Inflated Pocket Dimension and Expanded Toolbelt",
         steps: [
           "Caterium tree: **Inflated Pocket Dimension** (200 Silica).",
-          "Sulfur tree: **Smokeless Powder** (100 Black Powder, 50 Plastic), then **Inflated Pocket Dimension** (50 Smokeless Powder, 50 Computer).",
+          "Sulfur tree: **Inflated Pocket Dimension** (50 Smokeless Powder, 50 Computer). Needs Smokeless Powder researched first.",
           "Sulfur tree: **Expanded Toolbelt** (100 Black Powder, 50 Encased Industrial Beam).",
         ],
       },
       {
-        id: "p6-bpfloor", kind: "production", time: 45, optional: true, requires: ["p6-bp2"],
+        id: "p6-bpfloor", kind: "architecture", time: 45, optional: true, requires: ["p6-bp2"],
         title: "Blueprint a whole factory floor",
         goal: "One floor saved and stamped again",
         steps: [
@@ -905,6 +1269,30 @@ window.PHASES = [
         steps: [
           "Take the Explorer out to find **bauxite** with quartz and coal nearby (for Tier 7).",
           "Also stamp **uranium** and a remote spot that could store nuclear waste later.",
+        ],
+      },
+      {
+        id: "p6-arch-station", kind: "architecture", time: 40, optional: true, requires: ["p6-train"],
+        title: "Make your train stations look the part",
+        goal: "Roofs and platforms on both stations",
+        steps: [
+          "Buy **FICSIT Roofs** (6 coupons) and give both stations a roof, walls and a walkway to the platform.",
+        ],
+      },
+      {
+        id: "p6-manual", kind: "logistics", time: 20, optional: true, requires: ["p3-depot"],
+        title: "MAM: Manual Depot Uploader",
+        goal: "Upload from your own inventory",
+        steps: [
+          "MAM: **Manual Depot Uploader** (3 Mercer Sphere, 17 Computer, 29 SAM Fluctuator).",
+        ],
+      },
+      {
+        id: "p6-depot-exp", kind: "logistics", time: 20, optional: true, requires: ["p4-depot-exp"],
+        title: "Depot Expansion (300%)",
+        goal: "Three times as much fits in the Depot",
+        steps: [
+          "MAM: **Depot Expansion (300%)** (7 Mercer Sphere, 103 SAM Fluctuator).",
         ],
       },
     ],
@@ -993,9 +1381,9 @@ window.PHASES = [
       {
         id: "p7-mam-mycelia", kind: "mam", time: 40, optional: true,
         title: "MAM: Mycelia tree → Gas Mask",
-        goal: "Fabric, Parachute, Gas Mask (Gas Filters)",
+        goal: "Gas Mask (Gas Filters)",
         steps: [
-          "**Mycelia** (5), **Fabric** (25 Mycelia, 100 Biomass), **Parachute** (10 Fabric, 50 Cable), **Medical Properties** (25 Mycelia, 10 Stator).",
+          "Needs **Fabric** from the Mycelia tree first. Then **Medical Properties** (25 Mycelia, 10 Stator).",
           "**Gas Mask** (10 Coal, 50 Fabric, 50 Steel Pipe) unlocks **Gas Filters**, which the Hazmat Suit milestone needs.",
           "**Expanded Toolbelt** (50 Fabric, 100 Rotor) is a nice bonus.",
         ],
@@ -1077,8 +1465,24 @@ window.PHASES = [
         title: "MAM: Quartz tree, the rest",
         goal: "Radio Signal Scanning researched",
         steps: [
-          "**Signal Systems** (5 Crystal Oscillator, 5 Circuit Board) and **Radio Signal Scanning** (100 Crystal Oscillator, 100 Motor, 1 Object Scanner).",
+          "**Radio Signal Scanning** (100 Crystal Oscillator, 100 Motor, 1 Object Scanner). Needs Signal Systems first.",
           "Radio Signal Scanning adds new things your Object Scanner can find.",
+        ],
+      },
+      {
+        id: "p7-arch-windows", kind: "architecture", time: 30, optional: true, requires: ["p7-ingot"],
+        title: "Shop: windows for the aluminum plant",
+        goal: "Windowed walls on the aluminum outpost",
+        steps: [
+          "Buy **Windowed Walls** (6 coupons) and give the aluminum outpost walls you can see the refineries through.",
+        ],
+      },
+      {
+        id: "p7-well", kind: "explore", time: 40, optional: true,
+        title: "Find a Resource Well",
+        goal: "A nitrogen well stamped for Tier 8",
+        steps: [
+          "Resource Wells are clusters of small vents. You'll need a nitrogen one for Cooling Systems in Tier 8.",
         ],
       },
     ],
@@ -1212,6 +1616,64 @@ window.PHASES = [
         goal: "Try for big late-game savers",
         steps: ["Hoping for: **Super-State Computer**, **Radio Connection Unit**, **Heat Exchanger**, **Turbo Electric Motor**, **Uranium Fuel Unit**, **Cooling Device**."],
       },
+      {
+        id: "p8-arch-pad", kind: "architecture", time: 30, optional: true, requires: ["p8-drones"],
+        title: "Rooftop drone pad",
+        goal: "A Drone Port on a roof with lights",
+        steps: [
+          "Put a Drone Port on the roof of a factory and light it up.",
+        ],
+      },
+      {
+        id: "p8-arch-bridge", kind: "architecture", time: 45, optional: true,
+        title: "Connect two buildings",
+        goal: "A covered walkway or hypertube bridge",
+        steps: [
+          "Link two of your vertical factories at an upper floor with a walkway, catwalk or hypertube.",
+        ],
+      },
+      {
+        id: "p8-rcu", kind: "production", time: 45, optional: true, requires: ["p8-advalu"],
+        title: "Build Module: Radio Control Unit",
+        goal: "RCUs (Matter Conversion needs 250)",
+        steps: [
+          "Tier 9's first milestone needs 250 RCUs. Start a small line now so they're ready.",
+        ],
+        calc: {"targets":  {"Radio Control Unit":  1}, "supplied":  ["Aluminum Casing", "Computer", "Crystal Oscillator"]},
+      },
+      {
+        id: "p8-crystal", kind: "production", time: 40, optional: true, requires: ["p8-advalu"],
+        title: "Build Module: Crystal Oscillator",
+        goal: "Crystal Oscillators at a quartz node",
+        steps: [
+          "Feeds the RCU module and Supercomputers. Build it at a quartz node.",
+        ],
+        calc: {"targets":  {"Crystal Oscillator":  1}, "useAlts":  ["Alternate: Pure Quartz Crystal", "Alternate: Cast Screws"]},
+      },
+      {
+        id: "p8-spheres", kind: "explore", time: 45, optional: true,
+        title: "Mercer Sphere hunt: 60 total",
+        goal: "60 Mercer Spheres collected",
+        steps: [
+          "The last Depot upgrades and expansions need 23 each. Use radar towers to find unexplored areas.",
+        ],
+      },
+      {
+        id: "p8-sloops", kind: "explore", time: 40, optional: true,
+        title: "Somersloops: 20 collected",
+        goal: "20 Somersloops in storage",
+        steps: [
+          "Enough to double several Manufacturers or Particle Accelerators.",
+        ],
+      },
+      {
+        id: "p8-depot-exp", kind: "logistics", time: 20, optional: true, requires: ["p6-depot-exp"],
+        title: "Depot Expansion (400%)",
+        goal: "Four times as much fits in the Depot",
+        steps: [
+          "MAM: **Depot Expansion (400%)** (13 Mercer Sphere, 151 SAM Fluctuator).",
+        ],
+      },
     ],
   },
   {
@@ -1316,8 +1778,72 @@ window.PHASES = [
         goal: "Every reachable MAM node researched",
         steps: [
           "Open the MAM and finish anything left in Caterium, Quartz, Sulfur, Mycelia, Nutrients, Power Slugs and Alien Technology.",
-          "Synthetic Power Shards (10 Power Shard, 100 Time Crystal, 200 Quartz Crystal) let you make shards without slugs.",
           "Alien Organisms needs creature remains, which Peaceful mode doesn't have. That one stays unfinished.",
+        ],
+      },
+      {
+        id: "p9-depot-exp", kind: "logistics", time: 20, optional: true, requires: ["p8-depot-exp"],
+        title: "Depot Expansion (500%)",
+        goal: "Five times as much fits in the Depot",
+        steps: [
+          "MAM: **Depot Expansion (500%)** (23 Mercer Sphere, 199 SAM Fluctuator).",
+        ],
+      },
+      {
+        id: "p9-arch-deck", kind: "architecture", time: 60, optional: true,
+        title: "Build a viewing deck at the Space Elevator",
+        goal: "A spot to watch the final launch",
+        steps: [
+          "Build a platform with railings, lights and a walkway near the Space Elevator, high enough to see your factories.",
+        ],
+      },
+      {
+        id: "p9-arch-billboard", kind: "architecture", time: 15, optional: true,
+        title: "Shop: name your factory",
+        goal: "A billboard with your factory's name",
+        steps: [
+          "Buy the **Billboard Set** (10 coupons) and put your factory's name up somewhere visible.",
+        ],
+      },
+      {
+        id: "p9-time", kind: "production", time: 40, optional: true, requires: ["p9-matter"],
+        title: "Build Module: Time Crystal",
+        goal: "Time Crystals for Quantum Encoding and Peak Efficiency",
+        steps: [
+          "Quantum Encoding needs 50 Time Crystals and Peak Efficiency needs 250.",
+        ],
+        calc: {"targets":  {"Time Crystal":  3}},
+      },
+      {
+        id: "p9-synth", kind: "mam", time: 30, optional: true, requires: ["p9-time"],
+        title: "MAM: Synthetic Power Shards",
+        goal: "Shards without hunting slugs",
+        steps: [
+          "Power Slugs tree: **Synthetic Power Shards** (10 Power Shard, 100 Time Crystal, 200 Quartz Crystal).",
+        ],
+      },
+      {
+        id: "p9-overclock", kind: "explore", time: 30, optional: true,
+        title: "Overclock your biggest bottleneck",
+        goal: "One slow line running at 250%",
+        steps: [
+          "Find the module that limits your Phase 5 parts and overclock its slowest machines with shards.",
+        ],
+      },
+      {
+        id: "p9-sloops", kind: "explore", time: 30, optional: true, requires: ["p8-pasta"],
+        title: "Somersloops in the Particle Accelerators",
+        goal: "Nuclear Pasta output doubled",
+        steps: [
+          "Put Somersloops in the Nuclear Pasta Particle Accelerators. Halve the module's target on the goal board so nothing backs up.",
+        ],
+      },
+      {
+        id: "p9-tour", kind: "gear", time: 30, optional: true,
+        title: "Victory lap",
+        goal: "Every outpost visited one last time",
+        steps: [
+          "Take your favourite vehicle (or the hoverpack) on a tour of every outpost you built.",
         ],
       },
     ],
