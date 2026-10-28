@@ -388,7 +388,7 @@ window.PHASES = [
         steps: [
           "Coal Power and Enhanced Asset Security need 250 RIP between them. Build this on its own iron node.",
         ],
-        calc: {"targets":  {"Reinforced Iron Plate":  5}, "useAlts":  ["Alternate: Cast Screws", "Alternate: Stitched Iron Plate"]},
+        calc: { targets: { "Reinforced Iron Plate": 5 }, useAlts: ["Alternate: Cast Screws", "Alternate: Stitched Iron Plate"] },
       },
       {
         id: "p2-rotor", kind: "production", time: 30, optional: true, requires: ["p2-parts"],
@@ -397,7 +397,7 @@ window.PHASES = [
         steps: [
           "Coal Power, Basic Steel and Vehicular Transport need about 300 Rotors. Build this on its own iron node.",
         ],
-        calc: {"targets":  {"Rotor":  4}, "useAlts":  ["Alternate: Cast Screws"]},
+        calc: { targets: { Rotor: 4 }, useAlts: ["Alternate: Cast Screws", "Alternate: Copper Rotor"] },
       },
       {
         id: "p2-frames", kind: "production", time: 30, optional: true, requires: ["p2-parts"],
@@ -406,7 +406,7 @@ window.PHASES = [
         steps: [
           "Basic Steel and Vehicular Transport need 75 Modular Frames. Build this so you don't hand-craft them.",
         ],
-        calc: {"targets":  {"Modular Frame":  2}, "useAlts":  ["Alternate: Cast Screws"]},
+        calc: { targets: { "Modular Frame": 2 }, useAlts: ["Alternate: Cast Screws", "Alternate: Bolted Frame"] },
       },
       {
         id: "p2-sheet", kind: "production", time: 20, optional: true, requires: ["p2-parts"],
@@ -415,7 +415,7 @@ window.PHASES = [
         steps: [
           "Small add-on to your copper module.",
         ],
-        calc: {"targets":  {"Copper Sheet":  10}},
+        calc: { targets: { "Copper Sheet": 10 } },
       },
       {
         id: "p2-biofuel", kind: "power", time: 20, optional: true, requires: ["p2-clear"],
@@ -425,7 +425,7 @@ window.PHASES = [
           "Solid Biofuel burns longer than Biomass: 4/min keeps a 30 MW burner going.",
           "Chainsaw a forest, feed leaves into the constructors below, and fill the burners.",
         ],
-        calc: {"targets":  {"Solid Biofuel":  12}},
+        calc: { targets: { "Solid Biofuel": 12 } },
       },
       {
         id: "p2-arch-walk", kind: "architecture", time: 15, optional: true, requires: ["p2-sink"],
@@ -814,7 +814,7 @@ window.PHASES = [
         steps: [
           "Oil Processing, Jetpack and Petroleum Power need about 250 Motors together. Steel pipe comes from the steel outpost.",
         ],
-        calc: {"targets":  {"Motor":  2.5}, "supplied":  ["Steel Pipe"], "useAlts":  ["Alternate: Steel Rotor", "Alternate: Cast Screws"]},
+        calc: { targets: { Motor: 2.5 }, supplied: ["Steel Pipe"], useAlts: ["Alternate: Steel Rotor", "Alternate: Cast Screws"] },
       },
       {
         id: "p4-depot-exp", kind: "logistics", time: 20, optional: true, requires: ["p3-depot"],
@@ -988,7 +988,7 @@ window.PHASES = [
         steps: [
           "Build this at the fuel plant. Fuel comes straight off the refinery.",
         ],
-        calc: {"targets":  {"Packaged Fuel":  10}, "supplied":  ["Fuel"]},
+        calc: { targets: { "Packaged Fuel": 10 }, supplied: ["Fuel"] },
       },
       {
         id: "p5-mam-rifle", kind: "mam", time: 20, optional: true, requires: ["p5-oilms"],
@@ -1618,7 +1618,7 @@ window.PHASES = [
         steps: [
           "Tier 9's first milestone needs 250 RCUs. Start a small line now so they're ready.",
         ],
-        calc: {"targets":  {"Radio Control Unit":  1}, "supplied":  ["Aluminum Casing", "Computer", "Crystal Oscillator"]},
+        calc: { targets: { "Radio Control Unit": 1 }, supplied: ["Aluminum Casing", "Computer", "Crystal Oscillator"] },
       },
       {
         id: "p8-crystal", kind: "production", time: 40, optional: true, requires: ["p8-advalu"],
@@ -1627,7 +1627,7 @@ window.PHASES = [
         steps: [
           "Feeds the RCU module and Supercomputers. Build it at a quartz node.",
         ],
-        calc: {"targets":  {"Crystal Oscillator":  1}, "useAlts":  ["Alternate: Pure Quartz Crystal", "Alternate: Cast Screws"]},
+        calc: { targets: { "Crystal Oscillator": 1 }, useAlts: ["Alternate: Pure Quartz Crystal", "Alternate: Cast Screws"] },
       },
       {
         id: "p8-spheres", kind: "explore", time: 45, optional: true,
@@ -1791,7 +1791,7 @@ window.PHASES = [
         steps: [
           "Quantum Encoding needs 50 Time Crystals and Peak Efficiency needs 250.",
         ],
-        calc: {"targets":  {"Time Crystal":  3}},
+        calc: { targets: { "Time Crystal": 3 } },
       },
       {
         id: "p9-synth", kind: "mam", time: 30, optional: true, requires: ["p9-time"],
@@ -1829,46 +1829,63 @@ window.PHASES = [
   },
 ];
 
-// Curated alternates. rank: 1 = take it whenever offered. tier = earliest tier it's useful.
+// Curated alternates. rank: 1 = take it whenever offered, 2 = good, 3 = nice to have.
+// tier = when it's worth looking for (hard drives only offer recipes for things you've unlocked).
+// later = a better alternate that replaces it further on.
 window.ALTS = [
-  { name: "Alternate: Solid Steel Ingot", rank: 1, tier: 3, why: "60 steel ingots from 40 iron ingots + 40 coal. Smaller steel outposts." },
+  // Tier 1
+  { name: "Alternate: Cast Screws", rank: 2, tier: 1, why: "Screws straight from Iron Ingots: 50/min from 12.5 ingots, no rod step.", later: "Alternate: Steel Screws" },
+  // Tier 2
+  { name: "Alternate: Copper Rotor", rank: 2, tier: 2, why: "11.25 Rotors/min per Assembler (standard is 4) from Copper Sheet + Screws. Screw-hungry, so it shines with Steel Screws." },
+  { name: "Alternate: Stitched Iron Plate", rank: 2, tier: 2, why: "Reinforced Iron Plate from Iron Plate + Wire, no screws at all." },
+  { name: "Alternate: Bolted Iron Plate", rank: 3, tier: 2, why: "15 Reinforced Iron Plate/min per Assembler (standard is 5), but needs 250 Screws/min." },
+  { name: "Alternate: Bolted Frame", rank: 3, tier: 2, why: "5 Modular Frames/min per Assembler (standard is 2), but needs lots of screws.", later: "Alternate: Steeled Frame" },
+  // Tier 3
+  { name: "Alternate: Solid Steel Ingot", rank: 1, tier: 3, why: "60 Steel Ingots/min from 40 Iron Ingots + 40 Coal (standard: 45 from 45 ore + 45 coal). Smaller steel outposts." },
   { name: "Alternate: Steel Screws", rank: 1, tier: 3, why: "5 Steel Beams make 260 Screws. Removes screw lines almost entirely." },
-  { name: "Alternate: Steeled Frame", rank: 1, tier: 3, why: "Modular Frames from RIP + Steel Pipe, no rods. 50% more frames." },
+  { name: "Alternate: Steeled Frame", rank: 1, tier: 3, why: "Modular Frames from Reinforced Iron Plate + Steel Pipe, no rods. 50% more frames." },
+  { name: "Alternate: Iron Alloy Ingot", rank: 2, tier: 3, why: "Foundry: 75 Iron Ingots/min from 40 iron ore + 10 copper ore.", later: "Alternate: Pure Iron Ingot" },
+  { name: "Alternate: Copper Alloy Ingot", rank: 2, tier: 3, why: "Foundry: 100 Copper Ingots/min from 50 copper ore + 50 iron ore.", later: "Alternate: Pure Copper Ingot" },
+  { name: "Alternate: Steel Rotor", rank: 2, tier: 3, why: "Rotors from Steel Pipe + Wire, no screws." },
+  { name: "Alternate: Steel Cast Plate", rank: 3, tier: 3, why: "Foundry: 45 Iron Plates/min from 15 Iron Ingots + 15 Steel Ingots.", later: "Alternate: Coated Iron Plate" },
+  // Tier 4
+  { name: "Alternate: Encased Industrial Pipe", rank: 2, tier: 4, why: "Encased Industrial Beam from Steel Pipe + Concrete instead of beams." },
+  { name: "Alternate: Fused Wire", rank: 2, tier: 4, why: "90 Wire/min from mostly copper plus a little caterium." },
+  // Tier 5
   { name: "Alternate: Heavy Oil Residue", rank: 1, tier: 5, why: "Turns crude into mostly residue for the Diluted Fuel and Recycled loops." },
-  { name: "Alternate: Recycled Plastic", rank: 1, tier: 5, why: "Plastic from rubber + fuel. With Recycled Rubber, oil goes much further." },
-  { name: "Alternate: Recycled Rubber", rank: 1, tier: 5, why: "Rubber from plastic + fuel. Pairs with Recycled Plastic." },
-  { name: "Alternate: Pure Iron Ingot", rank: 1, tier: 5, why: "Refinery: 65 ingots from 35 ore + water. Doubles every iron node." },
-  { name: "Alternate: Pure Copper Ingot", rank: 1, tier: 5, why: "Refinery: 37.5 ingots from 15 ore + water. 2.5× every copper node." },
-  { name: "Alternate: Heavy Encased Frame", rank: 1, tier: 6, why: "Heavy Modular Frames without screws, 40% faster." },
-  { name: "Alternate: Plastic Smart Plating", rank: 1, tier: 6, why: "2.5× Smart Plating from the same parts plus a little plastic." },
-  { name: "Alternate: Diluted Fuel", rank: 1, tier: 7, why: "Residue + water → 100 Fuel per refinery-equivalent. Huge power boost (needs a Blender)." },
-  { name: "Alternate: Super-State Computer", rank: 1, tier: 7, why: "Supercomputers without High-Speed Connectors." },
-  { name: "Alternate: Cast Screws", rank: 2, tier: 0, why: "Screws straight from ingots. Skips the rod step." },
-  { name: "Alternate: Stitched Iron Plate", rank: 2, tier: 2, why: "RIP from plates + wire, no screws." },
-  { name: "Alternate: Iron Alloy Ingot", rank: 2, tier: 3, why: "Foundry: 75 iron ingots from 40 iron ore + 10 copper ore." },
-  { name: "Alternate: Copper Alloy Ingot", rank: 2, tier: 3, why: "Foundry: 100 copper ingots from 50 copper + 50 iron ore." },
-  { name: "Alternate: Steel Rotor", rank: 2, tier: 3, why: "Rotors from steel pipe + wire, no screws." },
-  { name: "Alternate: Encased Industrial Pipe", rank: 2, tier: 4, why: "EIB from steel pipe instead of beams." },
-  { name: "Alternate: Fused Wire", rank: 2, tier: 4, why: "90 wire from copper + a little caterium." },
-  { name: "Alternate: Silicon Circuit Board", rank: 2, tier: 5, why: "Circuit boards with no plastic." },
-  { name: "Alternate: Insulated Cable", rank: 2, tier: 5, why: "100 cable from wire + rubber." },
-  { name: "Alternate: Caterium Circuit Board", rank: 3, tier: 5, why: "Circuit boards from plastic + quickwire." },
+  { name: "Alternate: Recycled Plastic", rank: 1, tier: 5, why: "Plastic from Rubber + Fuel. With Recycled Rubber, oil goes much further." },
+  { name: "Alternate: Recycled Rubber", rank: 1, tier: 5, why: "Rubber from Plastic + Fuel. Pairs with Recycled Plastic." },
+  { name: "Alternate: Pure Iron Ingot", rank: 1, tier: 5, why: "Refinery: 65 Iron Ingots from 35 ore + water. Roughly doubles every iron node." },
+  { name: "Alternate: Pure Copper Ingot", rank: 1, tier: 5, why: "Refinery: 37.5 Copper Ingots from 15 ore + water. 2.5× every copper node." },
+  { name: "Alternate: Silicon Circuit Board", rank: 2, tier: 5, why: "Circuit Boards with no plastic." },
+  { name: "Alternate: Insulated Cable", rank: 2, tier: 5, why: "100 Cable/min from Wire + Rubber." },
+  { name: "Alternate: Coated Iron Plate", rank: 2, tier: 5, why: "75 Iron Plates/min from 37.5 Iron Ingots + a little Plastic." },
   { name: "Alternate: Pure Caterium Ingot", rank: 2, tier: 5, why: "Refinery caterium ingots: far fewer ore per ingot." },
-  { name: "Alternate: Flexible Framework", rank: 2, tier: 6, why: "50% more Versatile Framework with rubber." },
-  { name: "Alternate: Crystal Computer", rank: 2, tier: 6, why: "Computers from circuit boards + crystal oscillators in an Assembler." },
-  { name: "Alternate: Caterium Computer", rank: 2, tier: 6, why: "Computers from circuit boards, quickwire and rubber." },
-  { name: "Alternate: Rigor Motor", rank: 2, tier: 6, why: "Motors with far fewer rotors and stators." },
-  { name: "Alternate: Pure Aluminum Ingot", rank: 2, tier: 7, why: "Aluminum ingots in a smelter, no silica." },
-  { name: "Alternate: Sloppy Alumina", rank: 2, tier: 7, why: "Twice the alumina per refinery. Take with Electrode Scrap." },
+  { name: "Alternate: Caterium Circuit Board", rank: 3, tier: 5, why: "Circuit Boards from Plastic + Quickwire." },
+  { name: "Alternate: Wet Concrete", rank: 3, tier: 5, why: "80 Concrete/min per Refinery from limestone + water." },
+  { name: "Alternate: Pure Quartz Crystal", rank: 3, tier: 5, why: "Many more Quartz Crystals per raw quartz." },
+  { name: "Alternate: Fused Quickwire", rank: 3, tier: 5, why: "90 Quickwire/min from mostly copper." },
+  // Tier 6
+  { name: "Alternate: Heavy Encased Frame", rank: 1, tier: 6, why: "Heavy Modular Frames without screws, 40% faster." },
+  { name: "Alternate: Plastic Smart Plating", rank: 1, tier: 6, why: "2.5× Smart Plating from the same parts plus a little Plastic." },
+  { name: "Alternate: Flexible Framework", rank: 2, tier: 6, why: "50% more Versatile Framework with Rubber." },
+  { name: "Alternate: Crystal Computer", rank: 2, tier: 6, why: "Computers from Circuit Boards + Crystal Oscillators in an Assembler." },
+  { name: "Alternate: Caterium Computer", rank: 2, tier: 6, why: "Computers from Circuit Boards, Quickwire and Rubber." },
+  { name: "Alternate: Rigor Motor", rank: 2, tier: 6, why: "Motors with far fewer Rotors and Stators." },
+  // Tier 7
+  { name: "Alternate: Diluted Fuel", rank: 1, tier: 7, why: "Residue + water → 100 Fuel/min per Blender. Huge power boost." },
+  { name: "Alternate: Super-State Computer", rank: 1, tier: 7, why: "Supercomputers without High-Speed Connectors." },
+  { name: "Alternate: Pure Aluminum Ingot", rank: 2, tier: 7, why: "Aluminum Ingots in a Smelter, no silica." },
+  { name: "Alternate: Sloppy Alumina", rank: 2, tier: 7, why: "Twice the Alumina Solution per Refinery. Take with Electrode Scrap." },
   { name: "Alternate: Electrode Aluminum Scrap", rank: 2, tier: 7, why: "Scrap from Petroleum Coke instead of coal. Needs oil nearby." },
-  { name: "Alternate: Alclad Casing", rank: 2, tier: 7, why: "Almost double the casings per ingot." },
-  { name: "Alternate: Heat Exchanger", rank: 2, tier: 8, why: "Heat sinks from casings + rubber." },
-  { name: "Alternate: Cooling Device", rank: 3, tier: 8, why: "Cooling systems with less nitrogen." },
-  { name: "Alternate: Turbo Electric Motor", rank: 2, tier: 8, why: "Turbo Motors without cooling systems." },
+  { name: "Alternate: Alclad Casing", rank: 2, tier: 7, why: "Almost double the Aluminum Casings per ingot." },
+  // Tier 8
+  { name: "Alternate: Heat Exchanger", rank: 2, tier: 8, why: "Heat Sinks from Aluminum Casing + Rubber." },
+  { name: "Alternate: Turbo Electric Motor", rank: 2, tier: 8, why: "Turbo Motors without Cooling Systems." },
   { name: "Alternate: Uranium Fuel Unit", rank: 2, tier: 8, why: "50% more fuel rods from the same uranium cells." },
-  { name: "Alternate: Wet Concrete", rank: 3, tier: 5, why: "80 concrete per refinery from limestone + water." },
-  { name: "Alternate: Pure Quartz Crystal", rank: 3, tier: 5, why: "Many more crystals per raw quartz." },
-  { name: "Alternate: Fused Quickwire", rank: 3, tier: 5, why: "Quickwire from mostly copper." },
+  { name: "Alternate: Cooling Device", rank: 3, tier: 8, why: "Cooling Systems with less nitrogen." },
+  // Tier 9
+  { name: "Alternate: Dark Matter Trap", rank: 2, tier: 9, why: "60 Dark Matter Crystals/min from Time Crystals + residue (standard makes 30 and needs Diamonds)." },
 ];
 
 // Vehicle defaults for the route calculator. Slots are editable in the app.

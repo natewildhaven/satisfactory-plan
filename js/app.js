@@ -1112,13 +1112,28 @@
     if (keys.length) {
       h += '<div class="card"><h2>Hunting for now</h2><ul class="facts">' + keys.map(function (a) { return "<li><strong>" + esc(altName(a)) + "</strong>: helps " + wanted[a].map(esc).join(", ") + "</li>"; }).join("") + "</ul></div>";
     }
-    h += '<div class="card"><h2>Pick-list</h2><p class="muted">A hard drive offers a choice? Take whichever is highest on this list. ★★★ = take it whenever offered.</p>';
-    const list = window.ALTS.slice().sort(function (a, b) { return a.rank - b.rank || a.tier - b.tier; });
-    list.forEach(function (a) {
-      const on = owns(a.name);
-      h += '<label class="toggle"><input type="checkbox" id="alt-' + esc(a.name) + '" data-alt="' + esc(a.name) + '"' + (on ? " checked" : "") + "><span><strong>" + esc(altName(a.name)) + '</strong> <span class="stars">' + "★★★".slice(0, 4 - a.rank) + '</span> <span class="tag">Tier ' + a.tier + '+</span><br><span class="muted">' + esc(a.why) + "</span></span></label>";
+    h += '<p class="muted">A hard drive offers a choice? Take whichever is highest-ranked: ★★★ take it whenever offered, ★★ good, ★ nice to have. Hard drives only offer recipes for things you\'ve already unlocked, so later tiers\' picks show up later. Some early picks get replaced by a better one further on.</p>';
+    PHASES.forEach(function (p, pi) {
+      const list = altsForTier(pi);
+      if (!list.length) return;
+      const title = '<span class="eyebrow">' + esc(p.tier) + '</span><span class="tier-name">' + esc(p.title) + "</span>";
+      h += section("alts:" + p.id, title, list.filter(function (a) { return owns(a.name); }).length + "/" + list.length + " owned", list.map(altRow).join(""), "phase", pi > currentTier() + 1);
     });
-    return h + "</div>";
+    return h;
+  }
+
+  function altsForTier(pi) {
+    return window.ALTS.filter(function (a) { return a.tier === pi; }).sort(function (a, b) { return a.rank - b.rank; });
+  }
+  // One alternate with its rank, why it's good, and what it replaces or gets replaced by.
+  function altRow(a) {
+    const on = owns(a.name);
+    const later = a.later && window.ALTS.find(function (x) { return x.name === a.later; });
+    const earlier = window.ALTS.filter(function (x) { return x.later === a.name; });
+    let notes = "";
+    if (later) notes += '<span class="swap">↪ Later: swap to <strong>' + esc(altName(later.name)) + "</strong> (Tier " + later.tier + ")" + (owns(later.name) ? " ✓ owned" : "") + "</span>";
+    if (earlier.length) notes += '<span class="swap">↩ Replaces ' + earlier.map(function (x) { return "<strong>" + esc(altName(x.name)) + "</strong> (Tier " + x.tier + ")"; }).join(", ") + "</span>";
+    return '<label class="toggle alt-row' + (on ? " owned" : "") + '"><input type="checkbox" id="alt-' + esc(a.name) + '" data-alt="' + esc(a.name) + '"' + (on ? " checked" : "") + "><span><strong>" + esc(altName(a.name)) + '</strong> <span class="stars" title="' + ["", "Take it whenever offered", "Good", "Nice to have"][a.rank] + '">' + "★★★".slice(0, 4 - a.rank) + '</span><br><span class="muted">' + esc(a.why) + "</span>" + (notes ? '<span class="swaps">' + notes + "</span>" : "") + "</span></label>";
   }
 
   // ---------- stats ----------
@@ -1290,7 +1305,9 @@
         const body = ls.map(goalRow).join("") || '<div class="muted small empty">Nothing here with these filters.</div>';
         return section("goals:" + p.id + ":" + l.id, l.icon + " " + l.label + ' <span class="muted small">' + esc(l.hint) + "</span>", doneOf2(ls), body, "goal-sect");
       });
-      const body = '<div class="progress"><div style="width:' + pct(mand.filter(goalDone).length, mand.length) + '%"></div></div>' + ratesTable(pi) +
+      const tierAlts = altsForTier(pi);
+      const altSect = tierAlts.length ? section("goals:" + p.id + ":alts", "💾 Alternates to look for", tierAlts.filter(function (x) { return owns(x.name); }).length + "/" + tierAlts.length, tierAlts.map(altRow).join(""), "alts-sect", true) : "";
+      const body = '<div class="progress"><div style="width:' + pct(mand.filter(goalDone).length, mand.length) + '%"></div></div>' + ratesTable(pi) + altSect +
         (state.goalLayout === "columns" ? '<div class="three-col">' + parts.map(function (x) { return '<div class="col">' + x + "</div>"; }).join("") + "</div>" : parts.join(""));
       const title = '<span class="eyebrow">' + esc(p.tier) + '</span><span class="tier-name">' + esc(p.title) + "</span>";
       const count = mand.filter(goalDone).length + "/" + mand.length + " mandatory · " + all.filter(goalDone).length + "/" + all.length + " all";
