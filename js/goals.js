@@ -12,6 +12,21 @@ window.GOAL_COUNTERS = [
   { id: "alts", label: "Alternate recipes owned", icon: "💾", auto: true },
 ];
 
+// Production targets per tier: [item, minimum, ideal, stretch, how many the Space Elevator needs (optional)].
+// Minimum matches the module sizes on the Quests tab.
+window.GOAL_RATES = {
+  p0: [["Iron Plate", 20, 40, 60], ["Iron Rod", 15, 30, 45], ["Screws", 60, 120, 180], ["Wire", 60, 90, 120], ["Cable", 30, 60, 90], ["Concrete", 20, 40, 60]],
+  p1: [["Iron Plate", 40, 60, 90], ["Screws", 120, 180, 240], ["Wire", 90, 120, 180], ["Concrete", 30, 45, 60]],
+  p2: [["Smart Plating", 2, 5, 10, 50], ["Reinforced Iron Plate", 5, 10, 15], ["Rotor", 4, 8, 12], ["Modular Frame", 2, 4, 6], ["Copper Sheet", 10, 20, 30]],
+  p3: [["Steel Beam", 15, 30, 60], ["Steel Pipe", 20, 40, 60], ["Versatile Framework", 2.5, 5, 10, 1000], ["Reanimated SAM", 15, 30, 60]],
+  p4: [["Smart Plating", 5, 10, 15, 1000], ["Automated Wiring", 1, 2.5, 5, 100], ["Motor", 2.5, 5, 10], ["Encased Industrial Beam", 6, 12, 18]],
+  p5: [["Plastic", 60, 120, 180], ["Rubber", 60, 120, 180], ["Fuel", 80, 160, 240], ["Circuit Board", 5, 10, 15], ["Quickwire", 60, 120, 240]],
+  p6: [["Modular Engine", 1, 2, 4, 500], ["Computer", 2.5, 5, 10], ["Heavy Modular Frame", 1, 2, 4], ["Adaptive Control Unit", 0.5, 1, 2, 100], ["Versatile Framework", 10, 15, 20, 2500]],
+  p7: [["Aluminum Ingot", 120, 240, 360], ["Alclad Aluminum Sheet", 30, 60, 90], ["Aluminum Casing", 40, 80, 120], ["Supercomputer", 0.5, 1, 2], ["Battery", 10, 20, 40]],
+  p8: [["Assembly Director System", 0.5, 1, 2, 500], ["Magnetic Field Generator", 1, 2, 4, 500], ["Thermal Propulsion Rocket", 0.5, 1, 2, 250], ["Nuclear Pasta", 0.5, 1, 2, 100], ["Radio Control Unit", 1, 2.5, 5]],
+  p9: [["Biochemical Sculptor", 2, 4, 8, 1000], ["AI Expansion Server", 0.5, 1, 2, 256], ["Ballistic Warp Drive", 0.5, 1, 2, 200], ["Nuclear Pasta", 1, 2, 4, 1000], ["Time Crystal", 3, 6, 12]],
+};
+
 window.GOAL_LEVELS = [
   { id: "mandatory", label: "Mandatory", icon: "🔴", hint: "The core path to Project Assembly" },
   { id: "encouraged", label: "Encouraged", icon: "🔵", hint: "Good habits for how you like to play" },
@@ -22,6 +37,10 @@ window.GOAL_LEVELS = [
   function g(level, tag, text, extra) {
     return Object.assign({ level: level, tag: tag, text: text }, extra || {});
   }
+  // A goal that ticks itself once every listed item reaches its minimum rate.
+  function make(level, tag, text, items) {
+    return g(level, tag, text, { items: items });
+  }
   function count(level, tag, counter, target, text) {
     return g(level, tag, text, { counter: counter, target: target });
   }
@@ -31,9 +50,9 @@ window.GOAL_LEVELS = [
     p0: [
       g(M, "milestone", "Place the HUB within belt distance of iron, copper and limestone"),
       g(M, "power", "3 Biomass Burners running (90 MW)"),
-      g(M, "production", "Iron Plate, Iron Rod and Screws automated"),
-      g(M, "production", "Wire and Cable automated"),
-      g(M, "production", "Concrete automated"),
+      make(M, "production", "Iron Plate, Iron Rod and Screws automated", ["Iron Plate", "Iron Rod", "Screws"]),
+      make(M, "production", "Wire and Cable automated", ["Wire", "Cable"]),
+      make(M, "production", "Concrete automated", ["Concrete"]),
       g(M, "elevator", "Space Elevator placed"),
       g(E, "production", "Every module at exact clocks, no idle machines"),
       g(E, "gear", "All 4 starting Portable Miners placed"),
@@ -47,6 +66,7 @@ window.GOAL_LEVELS = [
       g(M, "milestone", "Milestone: Base Building"),
       g(M, "milestone", "Milestone: Logistics"),
       g(M, "milestone", "Milestone: Field Research, MAM built"),
+      make(E, "production", "Starter lines scaled up for the Tier 1 and 2 milestones", ["Iron Plate", "Screws", "Wire", "Concrete"]),
       g(E, "logistics", "An overflow splitter on every module's output"),
       g(E, "mam", "First node of every MAM tree you can reach researched"),
       count(E, "alts", "harddrives", 2, "Hard drives researched: 2"),
@@ -60,12 +80,12 @@ window.GOAL_LEVELS = [
     ],
     p2: [
       g(M, "milestone", "Milestone: Part Assembly"),
-      g(M, "elevator", "Smart Plating automated"),
+      make(M, "elevator", "Smart Plating automated", ["Smart Plating"]),
       g(M, "elevator", "Space Elevator Phase 1 shipped (50 Smart Plating)"),
       g(E, "milestone", "Milestone: Resource Sink Bonus Program, all overflow reaches the sink"),
       g(E, "mam", "Smart Splitters researched and on every module"),
       g(E, "milestone", "Milestones: Logistics Mk.2 and Obstacle Clearing"),
-      g(E, "production", "Reinforced Iron Plate, Rotor and Modular Frame automated (Tier 3 needs lots)"),
+      make(E, "production", "Reinforced Iron Plate, Rotor and Modular Frame automated (Tier 3 needs lots)", ["Reinforced Iron Plate", "Rotor", "Modular Frame"]),
       count(E, "alts", "harddrives", 4, "Hard drives researched: 4"),
       count(O, "explore", "mercer", 6, "Mercer Spheres: 6"),
       count(O, "explore", "shards", 3, "Power Shards: 3"),
@@ -78,10 +98,10 @@ window.GOAL_LEVELS = [
     p3: [
       g(M, "power", "Milestone: Coal Power, 600 MW coal plant running"),
       g(M, "milestone", "Milestone: Basic Steel Production"),
-      g(M, "production", "Steel Beam and Steel Pipe automated"),
-      g(M, "elevator", "Versatile Framework automated"),
+      make(M, "production", "Steel Beam and Steel Pipe automated", ["Steel Beam", "Steel Pipe"]),
+      make(M, "elevator", "Versatile Framework automated", ["Versatile Framework"]),
       g(E, "logistics", "Dimensional Depot unlocked, first uploader running"),
-      g(E, "logistics", "Reanimated SAM automated"),
+      make(E, "logistics", "Reanimated SAM automated", ["Reanimated SAM"]),
       g(E, "logistics", "Milestone: Vehicular Transport, one Tractor route at a steady rate"),
       count(E, "alts", "alts", 2, "Alternate recipes owned: 2"),
       count(E, "alts", "harddrives", 6, "Hard drives researched: 6"),
@@ -97,12 +117,12 @@ window.GOAL_LEVELS = [
     ],
     p4: [
       g(M, "milestone", "Milestone: Advanced Steel Production"),
-      g(M, "elevator", "Automated Wiring automated"),
+      make(M, "elevator", "Automated Wiring automated", ["Automated Wiring"]),
       g(M, "elevator", "Space Elevator Phase 2 shipped (1000 Smart Plating, 1000 Versatile Framework, 100 Automated Wiring)"),
       g(E, "architecture", "Milestone: FICSIT Blueprints, 2 blueprints saved"),
       g(E, "milestone", "Milestone: Logistics Mk.3"),
-      g(E, "elevator", "Smart Plating at 5/min or more"),
-      g(E, "production", "Motors automated (Tier 5 needs about 250)"),
+      make(E, "elevator", "Smart Plating scaled up for Phase 2", ["Smart Plating"]),
+      make(E, "production", "Motors automated (Tier 5 needs about 250)", ["Motor"]),
       count(E, "alts", "alts", 4, "Alternate recipes owned: 4"),
       count(E, "explore", "mercer", 15, "Mercer Spheres: 15"),
       count(O, "alts", "harddrives", 8, "Hard drives researched: 8"),
@@ -115,18 +135,19 @@ window.GOAL_LEVELS = [
     ],
     p5: [
       g(M, "milestone", "Milestone: Oil Processing"),
-      g(M, "production", "Plastic and Rubber automated at the oil field"),
+      make(M, "production", "Plastic and Rubber automated at the oil field", ["Plastic", "Rubber"]),
       g(M, "power", "Milestone: Petroleum Power, 1000 MW fuel plant running"),
-      g(M, "production", "Circuit Boards automated"),
+      make(M, "production", "Circuit Boards automated", ["Circuit Board"]),
       g(E, "logistics", "Milestone: Logistics Mk.4, one Truck route with the Buffer Rule"),
       g(E, "power", "Grid at 1600 MW or more"),
+      make(E, "power", "Fuel production for the generators", ["Fuel"]),
       count(E, "alts", "alts", 6, "Alternate recipes owned: 6 (try for the oil loop)"),
       count(E, "alts", "harddrives", 12, "Hard drives researched: 12"),
       count(E, "explore", "sloops", 5, "Somersloops: 5"),
       count(O, "explore", "mercer", 20, "Mercer Spheres: 20"),
       g(O, "gear", "Jetpack"),
       g(O, "milestone", "Milestone: Fluid Packaging"),
-      g(O, "production", "Quickwire automated"),
+      make(O, "production", "Quickwire automated", ["Quickwire"]),
       g(O, "power", "Geothermal Generator on a geyser"),
       g(O, "gear", "Explorer trip to bauxite and uranium"),
       g(O, "architecture", "Oil outpost raised on pillars"),
@@ -134,9 +155,9 @@ window.GOAL_LEVELS = [
     ],
     p6: [
       g(M, "milestone", "Milestone: Industrial Manufacturing"),
-      g(M, "elevator", "Modular Engines automated"),
-      g(M, "production", "Computers and Heavy Modular Frames automated"),
-      g(M, "elevator", "Adaptive Control Units automated"),
+      make(M, "elevator", "Modular Engines automated", ["Modular Engine"]),
+      make(M, "production", "Computers and Heavy Modular Frames automated", ["Computer", "Heavy Modular Frame"]),
+      make(M, "elevator", "Adaptive Control Units automated", ["Adaptive Control Unit"]),
       g(M, "elevator", "Space Elevator Phase 3 shipped (2500 Versatile Framework, 500 Modular Engine, 100 ACU)"),
       g(E, "logistics", "Milestone: Monorail Train Technology, one train line with the Buffer Rule"),
       g(E, "power", "Grid at 2600 MW or more"),
@@ -156,17 +177,17 @@ window.GOAL_LEVELS = [
     ],
     p7: [
       g(M, "milestone", "Milestone: Bauxite Refinement"),
-      g(M, "production", "Aluminum Ingots automated, with the water loop"),
-      g(M, "production", "Alclad Aluminum Sheet and Aluminum Casing automated"),
+      make(M, "production", "Aluminum Ingots automated, with the water loop", ["Aluminum Ingot"]),
+      make(M, "production", "Alclad Aluminum Sheet and Aluminum Casing automated", ["Alclad Aluminum Sheet", "Aluminum Casing"]),
       g(M, "milestone", "Milestone: Control System Development"),
-      g(E, "production", "Supercomputers automated"),
+      make(E, "production", "Supercomputers automated", ["Supercomputer"]),
       g(E, "milestone", "Milestone: Logistics Mk.5"),
       g(E, "power", "Turbofuel researched and burning"),
       count(E, "alts", "alts", 14, "Alternate recipes owned: 14"),
       count(E, "alts", "harddrives", 20, "Hard drives researched: 20"),
       g(O, "gear", "Hoverpack"),
       g(O, "gear", "Gas Mask and Hazmat Suit"),
-      g(O, "production", "Batteries automated"),
+      make(O, "production", "Batteries automated", ["Battery"]),
       g(O, "gear", "Cyber Wagon"),
       count(O, "explore", "mercer", 40, "Mercer Spheres: 40"),
       count(O, "explore", "sloops", 12, "Somersloops: 12"),
@@ -175,14 +196,14 @@ window.GOAL_LEVELS = [
     ],
     p8: [
       g(M, "milestone", "Milestones: Advanced Aluminum Production, Nuclear Power, Leading-Edge Production, Particle Enrichment"),
-      g(M, "elevator", "Assembly Director Systems automated"),
-      g(M, "elevator", "Magnetic Field Generators automated"),
-      g(M, "elevator", "Thermal Propulsion Rockets automated"),
-      g(M, "elevator", "Nuclear Pasta automated"),
+      make(M, "elevator", "Assembly Director Systems automated", ["Assembly Director System"]),
+      make(M, "elevator", "Magnetic Field Generators automated", ["Magnetic Field Generator"]),
+      make(M, "elevator", "Thermal Propulsion Rockets automated", ["Thermal Propulsion Rocket"]),
+      make(M, "elevator", "Nuclear Pasta automated", ["Nuclear Pasta"]),
       g(M, "elevator", "Space Elevator Phase 4 shipped (500 ADS, 500 MFG, 250 TPR, 100 Nuclear Pasta)"),
       g(E, "power", "Grid at 3700 MW or more"),
       g(E, "explore", "A Resource Well tapped for nitrogen"),
-      g(E, "production", "Radio Control Units automated (Matter Conversion needs 250)"),
+      make(E, "production", "Radio Control Units automated (Matter Conversion needs 250)", ["Radio Control Unit"]),
       count(E, "alts", "alts", 18, "Alternate recipes owned: 18"),
       g(O, "power", "A nuclear waste plan, then reactors"),
       g(O, "gear", "A drone route"),
@@ -194,12 +215,13 @@ window.GOAL_LEVELS = [
     ],
     p9: [
       g(M, "milestone", "Milestones: Matter Conversion, Quantum Encoding, Spatial Energy Regulation"),
-      g(M, "elevator", "Biochemical Sculptors automated"),
-      g(M, "elevator", "AI Expansion Servers automated"),
-      g(M, "elevator", "Ballistic Warp Drives automated"),
+      make(M, "elevator", "Biochemical Sculptors automated", ["Biochemical Sculptor"]),
+      make(M, "elevator", "AI Expansion Servers automated", ["AI Expansion Server"]),
+      make(M, "elevator", "Ballistic Warp Drives automated", ["Ballistic Warp Drive"]),
+      make(M, "elevator", "Nuclear Pasta scaled up for Phase 5", ["Nuclear Pasta"]),
       g(M, "elevator", "Space Elevator Phase 5 shipped (1000 Nuclear Pasta, 1000 Biochemical Sculptor, 256 AI Expansion Server, 200 Ballistic Warp Drive)"),
       g(E, "power", "Grid at 6000 MW or more"),
-      g(E, "production", "Time Crystals automated"),
+      make(E, "production", "Time Crystals automated", ["Time Crystal"]),
       g(O, "milestone", "Milestone: Peak Efficiency, Mk.6 belts"),
       g(O, "power", "Ficsonium closing the nuclear waste loop"),
       g(O, "power", "Alien Power Augmenter running"),

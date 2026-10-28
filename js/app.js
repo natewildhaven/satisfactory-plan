@@ -14,7 +14,7 @@
       notes: {}, routes: [], calcIn: {},
       listLayout: "stacked", listScope: "all", hideDone: false, tagFilter: [],
       queue: [], collapsed: {},
-      goals: {}, counters: {}, goalLayout: "level", goalScope: "all", goalHideDone: false, goalTags: [],
+      goals: {}, counters: {}, rateLevels: {}, goalLayout: "level", goalScope: "all", goalHideDone: false, goalTags: [],
     }, over || {});
   }
   let state = load();
@@ -1195,7 +1195,14 @@
 
   // ---------- goals tab: what to achieve per tier, not how ----------
   function counterValue(id) { return id === "alts" ? state.alts.length : (+state.counters[id] || 0); }
-  function goalDone(goal) { return goal.counter ? counterValue(goal.counter) >= goal.target : !!state.goals[goal.id]; }
+  const LEVEL_ORDER = ["min", "ideal", "stretch"];
+  function rateLevel(tid, item) { return LEVEL_ORDER.indexOf(state.rateLevels[tid + "|" + item]); } // -1 = not reached
+  function goalTierId(goal) { return goal.id.split(":")[0]; }
+  function goalDone(goal) {
+    if (goal.counter) return counterValue(goal.counter) >= goal.target;
+    if (goal.items) return goal.items.every(function (i) { return rateLevel(goalTierId(goal), i) >= 0; });
+    return !!state.goals[goal.id];
+  }
   function goalsOf(pi) { return window.GOALS[PHASES[pi].id] || []; }
   function goalTier() {
     for (let pi = 0; pi < PHASES.length; pi++) {
@@ -1228,7 +1235,15 @@
     const done = goalDone(goal);
     const lvl = window.GOAL_LEVELS.find(function (l) { return l.id === goal.level; });
     let h = '<div class="goal-item lvl-' + goal.level + (done ? " done" : "") + '">';
-    if (goal.counter) {
+    if (goal.items) {
+      const tid = goalTierId(goal);
+      const rows = (window.GOAL_RATES[tid] || []).filter(function (r) { return goal.items.indexOf(r[0]) !== -1; });
+      h += '<span class="goal-check auto" title="Ticks itself when every item reaches its minimum in the production table">' + (done ? "✓" : "") + "</span>";
+      h += '<span class="goal-text">' + esc(goal.text) + '<span class="goal-rates">' + rows.map(function (r) {
+        const lv = rateLevel(tid, r[0]);
+        return '<span class="rate-chip' + (lv >= 0 ? " hit" : "") + '">' + esc(r[0]) + " <b>" + fmt(r[1]) + " / " + fmt(r[2]) + " / " + fmt(r[3]) + "</b>/min" + (lv >= 0 ? " ✓ " + ["min", "ideal", "stretch"][lv] : "") + "</span>";
+      }).join("") + "</span></span>";
+    } else if (goal.counter) {
       const v = counterValue(goal.counter);
       h += '<span class="goal-check auto" title="Ticks itself from the counter above">' + (done ? "✓" : "") + "</span>";
       h += '<span class="goal-text">' + esc(goal.text) + '<span class="goal-progress"><span class="meter"><span style="width:' + Math.min(100, pct(v, goal.target)) + '%"></span></span> ' + Math.min(v, goal.target) + "/" + goal.target + "</span></span>";
@@ -1275,7 +1290,7 @@
         const body = ls.map(goalRow).join("") || '<div class="muted small empty">Nothing here with these filters.</div>';
         return section("goals:" + p.id + ":" + l.id, l.icon + " " + l.label + ' <span class="muted small">' + esc(l.hint) + "</span>", doneOf2(ls), body, "goal-sect");
       });
-      const body = '<div class="progress"><div style="width:' + pct(mand.filter(goalDone).length, mand.length) + '%"></div></div>' +
+      const body = '<div class="progress"><div style="width:' + pct(mand.filter(goalDone).length, mand.length) + '%"></div></div>' + ratesTable(pi) +
         (state.goalLayout === "columns" ? '<div class="three-col">' + parts.map(function (x) { return '<div class="col">' + x + "</div>"; }).join("") + "</div>" : parts.join(""));
       const title = '<span class="eyebrow">' + esc(p.tier) + '</span><span class="tier-name">' + esc(p.title) + "</span>";
       const count = mand.filter(goalDone).length + "/" + mand.length + " mandatory · " + all.filter(goalDone).length + "/" + all.length + " all";
@@ -1284,6 +1299,37 @@
     return h;
   }
   function doneOf2(goals) { return goals.filter(goalDone).length + "/" + goals.length; }
+
+  // Production targets: click a number to mark that level reached; 🏭 opens the machines for it.
+  function ratesTable(pi) {
+    const tid = PHASES[pi].id;
+    const rows = window.GOAL_RATES[tid] || [];
+    if (!rows.length) return "";
+    const names = ["Minimum", "Ideal", "Stretch"];
+    let body = '<div class="table-wrap"><table class="rates-table"><thead><tr><th>Make (per minute)</th>' + names.map(function (n) { return "<th>" + n + "</th>"; }).join("") + "<th></th></tr></thead><tbody>";
+    rows.forEach(function (r) {
+      const lv = rateLevel(tid, r[0]);
+      body += "<tr><td><strong>" + esc(r[0]) + "</strong></td>";
+      for (let i = 0; i < 3; i++) {
+        const rate = r[1 + i];
+        body += '<td><span class="rate-cell"><button class="rate-btn' + (lv >= i ? " hit" : "") + '" data-ratelevel="' + esc(tid + "|" + r[0]) + '" data-lv="' + LEVEL_ORDER[i] + '" title="Mark ' + names[i].toLowerCase() + ' reached">' + (lv >= i ? "✓ " : "") + fmt(rate) + '</button><button class="icon-btn" data-ratecalc="' + esc(r[0]) + '" data-rate="' + rate + '" aria-label="Machines for ' + fmt(rate) + "/min " + esc(r[0]) + '" title="Machines for this rate">🏭</button></span>';
+        if (r[4]) body += '<div class="muted small">' + hours(r[4] / rate) + " for " + r[4] + "</div>";
+        body += "</td>";
+      }
+      body += '<td class="muted small">' + (r[4] ? "Space Elevator needs " + r[4] : "") + "</td></tr>";
+    });
+    body += "</tbody></table></div>";
+    const hit = rows.filter(function (r) { return rateLevel(tid, r[0]) >= 0; }).length;
+    return section("goals:" + tid + ":rates", "📈 Production targets", hit + "/" + rows.length, body, "rates-sect");
+  }
+
+  // A quick machine plan for any item at any rate (standard recipes plus alternates you own that fit).
+  function rateMission(item, rate) {
+    return {
+      id: "rate:" + item + ":" + rate, kind: "production", title: fmt(rate) + " " + item + " per minute",
+      steps: [""], calc: { targets: (function () { const t = {}; t[item] = rate; return t; })() },
+    };
+  }
 
   // ---------- render ----------
   let resetArmed = false;
@@ -1368,11 +1414,17 @@
   let drawerId = null;
   const drawer = document.getElementById("drawer");
   function openDrawer(id) { drawerId = id; drawer.hidden = false; renderDrawer(); }
-  function closeDrawer() { drawerId = null; drawer.hidden = true; }
+  function closeDrawer() { drawerId = null; drawerRate = null; drawer.hidden = true; }
+  let drawerRate = null;
   function renderDrawer() {
     const body = document.getElementById("drawer-body");
     const panel = drawer.querySelector(".drawer-panel");
     const st = panel.scrollTop;
+    if (drawerRate) {
+      body.innerHTML = '<div class="card"><div class="eyebrow">Production target</div><h1>' + esc(drawerRate.title) + '</h1><p class="muted">Standard recipes, with everything made on site from raw resources. Use it as a starting point and change anything you like.</p>' + calcBox(drawerRate) + "</div>";
+      panel.scrollTop = st;
+      return;
+    }
     body.innerHTML = missionBody(drawerId);
     panel.scrollTop = st;
   }
@@ -1454,11 +1506,27 @@
   });
 
   document.addEventListener("click", function (e) {
-    const t = e.target.closest("[data-glayout],[data-gscope],[data-gtag],[data-cstep],[data-qtoggle],[data-unqueue],[data-layout],[data-scope],[data-tag],[data-view],[data-open],[data-done],[data-undo],[data-skip],[data-unskip],[data-dismiss],[data-calcmode],[data-close],[data-focus],[data-resetorder],[data-move],[data-delroute],#copy,#load,#reset,#reset-yes,#reset-no");
+    const t = e.target.closest("[data-ratelevel],[data-ratecalc],[data-glayout],[data-gscope],[data-gtag],[data-cstep],[data-qtoggle],[data-unqueue],[data-layout],[data-scope],[data-tag],[data-view],[data-open],[data-done],[data-undo],[data-skip],[data-unskip],[data-dismiss],[data-calcmode],[data-close],[data-focus],[data-resetorder],[data-move],[data-delroute],#copy,#load,#reset,#reset-yes,#reset-no");
     if (!t) return;
     if (t.tagName === "A") e.preventDefault();
     if (t.dataset.layout) { state.listLayout = t.dataset.layout; save(); render(); return; }
     if (t.dataset.glayout) { state.goalLayout = t.dataset.glayout; save(); render(); return; }
+    if (t.dataset.ratelevel) {
+      const before = goalTier();
+      const k = t.dataset.ratelevel;
+      // Clicking the level you're at steps back one; anything else sets it.
+      if (state.rateLevels[k] === t.dataset.lv) {
+        const i = LEVEL_ORDER.indexOf(t.dataset.lv);
+        if (i > 0) state.rateLevels[k] = LEVEL_ORDER[i - 1]; else delete state.rateLevels[k];
+      } else state.rateLevels[k] = t.dataset.lv;
+      save(); goalCelebrate(null, before); render(); return;
+    }
+    if (t.dataset.ratecalc) {
+      drawerRate = rateMission(t.dataset.ratecalc, +t.dataset.rate);
+      drawerId = drawerRate.id;
+      drawer.hidden = false;
+      renderDrawer(); return;
+    }
     if (t.dataset.gscope) { state.goalScope = t.dataset.gscope; save(); render(); return; }
     if (t.dataset.gtag !== undefined) {
       const tg = t.dataset.gtag;

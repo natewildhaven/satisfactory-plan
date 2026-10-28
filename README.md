@@ -2,7 +2,7 @@
 
 A personal, one-step-at-a-time guide from landing in the Rocky Desert to Project Assembly (Satisfactory 1.x, Peaceful mode).
 
-- **Goals** is a tier-by-tier checklist of what to achieve, not how: 🔴 mandatory, 🔵 encouraged and ⚪ optional goals with tags, plus counters for Mercer Spheres, Somersloops, hard drives, Power Shards and alternates that tick their goals automatically.
+- **Goals** is a tier-by-tier checklist of what to achieve, not how: 🔴 mandatory, 🔵 encouraged and ⚪ optional goals with tags, plus counters for Mercer Spheres, Somersloops, hard drives, Power Shards and alternates that tick their goals automatically. Each tier has a production targets table (minimum / ideal / stretch per minute) with machine plans for any rate.
 - **Quests** shows your current quest, the focus picker, the tier's goal board (editable target rates and power goal) and every other mission in the tier. Drag or use ▲▼ to reorder; missions never move ahead of what they depend on.
 - **My queue**: press **+ Queue** on any quest to line it up. The queue sits at the top of Now and List, can be dragged into any order, and the first ready quest in it becomes your current quest.
 - **List** has five layouts (Stacked, Main | Side, By tag, By status, Table), tag filters and a hide-done toggle. Every section collapses and shows a count. **Flowchart** and **Mind map** show the same progress as diagrams.

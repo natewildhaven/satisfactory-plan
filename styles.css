@@ -216,6 +216,18 @@ svg text { font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif
 @media (max-width: 1000px) { .three-col { grid-template-columns: 1fr; } }
 @media (max-width: 640px) { .goal-tags { width: 100%; justify-content: flex-start; } .goal-item { flex-wrap: wrap; } }
 
+/* Production targets */
+.rates-table td, .rates-table th { vertical-align: middle; }
+.rate-cell { display: inline-flex; gap: 4px; align-items: center; }
+.rate-btn { background: var(--panel-2); border: 1px solid var(--line); border-radius: 6px; padding: 5px 10px; cursor: pointer; font: 600 14px var(--font-mono); color: var(--text); min-width: 64px; }
+.rate-btn:hover { border-color: var(--accent); }
+.rate-btn.hit { background: var(--done-dim); border-color: var(--done); color: #cfe9d6; }
+.goal-rates { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 5px; }
+.rate-chip { font-size: 12px; padding: 2px 8px; border-radius: 999px; background: var(--panel-2); border: 1px solid var(--line); color: var(--muted); }
+.rate-chip b { font-family: var(--font-mono); color: var(--text); font-weight: 600; }
+.rate-chip.hit { border-color: var(--done); color: #cfe9d6; }
+.rates-sect { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 4px 12px 8px; }
+
 /* Collapsible sections + queue */
 .sect { margin: 14px 0; }
 .sect > summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 10px; padding: 6px 2px; user-select: none; }
