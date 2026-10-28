@@ -235,6 +235,10 @@ svg text { font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif
 .icon-btn { background: var(--panel-2); border: 1px solid var(--line); border-radius: 5px; cursor: pointer; font-size: 10px; line-height: 1; padding: 3px 6px; color: var(--muted); }
 .icon-btn:hover { color: var(--text); border-color: var(--accent); }
 .kind-ic { display: inline-block; width: 1.3em; }
+.side-title { color: var(--side); }
+.tag.side-tag { background: #6fa8dc26; color: var(--side); }
+.hunts { margin: 14px 0; }
+.hunts summary { cursor: pointer; color: var(--side); font-weight: 600; }
 
 /* Floor plan */
 .floors { display: grid; gap: 8px; margin: 8px 0; }
@@ -285,9 +289,10 @@ svg text { font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif
 .toast {
   position: fixed; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom, 0px)); transform: translate(-50%, 140%);
   background: var(--panel-2); border: 1px solid var(--done); border-radius: 12px; padding: 12px 18px; z-index: 60;
-  box-shadow: 0 10px 30px #0008; transition: transform .3s ease; max-width: calc(100% - 32px); text-align: center;
+  box-shadow: 0 10px 30px #0008; transition: transform .3s ease, opacity .3s ease, visibility 0s linear .3s;
+  max-width: calc(100% - 32px); text-align: center; opacity: 0; visibility: hidden; pointer-events: none;
 }
-.toast.show { transform: translate(-50%, 0); }
+.toast.show { transform: translate(-50%, 0); opacity: 1; visibility: visible; transition: transform .3s ease, opacity .3s ease; }
 .toast.big { border-color: var(--accent); font-size: 18px; padding: 18px 26px; }
 .confetti {
   position: fixed; top: -10px; width: 8px; height: 12px; border-radius: 2px; z-index: 59; pointer-events: none;

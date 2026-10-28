@@ -32,7 +32,7 @@
   PHASES.forEach(function (p, pi) {
     p.missions.forEach(function (m, n) { index[m.id] = { m: m, phase: p, pi: pi, n: n }; });
   });
-  function info(id) { return index[id] || upgradeIndex[id]; }
+  function info(id) { return index[id] || upgradeIndex[id] || altQuestIndex[id]; }
 
   function visibleSteps(m) {
     return m.steps.map(function (s, i) { return { s: s, i: i }; }).filter(function (x) {
@@ -45,17 +45,24 @@
   function stepText(s) { return typeof s === "string" ? s : s.text; }
   function stepsOf(m) { return state.steps[m.id] || []; }
   function isDone(m) {
+    if (m.altQuest) return owns(m.altQuest);
     const s = stepsOf(m);
     return visibleSteps(m).every(function (x) { return !!s[x.i]; });
   }
   function doneCount(m) {
+    if (m.altQuest) return owns(m.altQuest) ? 1 : 0;
     const s = stepsOf(m);
     return visibleSteps(m).filter(function (x) { return !!s[x.i]; }).length;
   }
   function owns(alt) { return state.alts.indexOf(alt) !== -1; }
 
+  function setOwned(name, v) {
+    state.alts = state.alts.filter(function (a) { return a !== name; });
+    if (v) state.alts.push(name);
+  }
   function setStep(id, i, v) {
     const m = info(id).m;
+    if (m.altQuest) return setMission(id, v);
     const before = isDone(m);
     const s = stepsOf(m).slice();
     s[i] = v;
@@ -65,6 +72,12 @@
   function setMission(id, v) {
     const m = info(id).m;
     const before = isDone(m);
+    if (m.altQuest) {
+      setOwned(m.altQuest, v);
+      if (v && !before) celebrate(m);
+      save();
+      return;
+    }
     const s = [];
     m.steps.forEach(function (_, i) { s[i] = v; });
     state.steps[id] = s;
@@ -145,6 +158,29 @@
     return list;
   }
 
+  // One side quest per alternate worth hunting right now: every top-ranked one from
+  // the last few tiers, plus good ones from this tier. Owning it completes the quest.
+  let altQuestIndex = {};
+  function altQuests() {
+    altQuestIndex = {};
+    const pi = currentTier();
+    const p = PHASES[pi];
+    const tierNum = pi; // phase index matches the game tier number
+    return window.ALTS.filter(function (a) {
+      if (a.tier > tierNum) return false;
+      return a.rank === 1 ? a.tier >= tierNum - 3 : a.rank === 2 && a.tier === tierNum;
+    }).map(function (a) {
+      const m = {
+        id: "alt:" + a.name, kind: "alts", optional: true, time: 20, altQuest: a.name,
+        title: "Find alternate: " + altName(a.name),
+        goal: a.why,
+        steps: ["Research hard drives in the MAM until **" + altName(a.name) + "** is offered, then pick it. Ticking this marks it as owned."],
+      };
+      altQuestIndex[m.id] = { m: m, phase: p, pi: pi, n: 999 };
+      return m;
+    });
+  }
+
   function requiresMet(m) {
     return (m.requires || []).every(function (r) { return index[r] && isDone(index[r].m); });
   }
@@ -173,7 +209,7 @@
   // then required before optional. Never ahead of a mission it depends on.
   function tierList(pi) {
     let list = PHASES[pi].missions.slice();
-    if (pi === currentTier()) list = list.concat(upgrades());
+    if (pi === currentTier()) list = list.concat(upgrades(), altQuests());
     const manual = state.order[PHASES[pi].id];
     let pref;
     if (manual) {
@@ -265,7 +301,7 @@
     const m = inf.m;
     const done = isDone(m);
     const s = stepsOf(m);
-    const where = (m.optional ? "Optional · " : "") + inf.phase.tier;
+    const where = (m.optional ? "Side quest" : "Main quest") + " · " + inf.phase.tier;
     let h = '<div class="card ' + (opts && opts.current ? "current" : "") + '">';
     h += '<div class="eyebrow">' + esc(where) + "</div>";
     h += "<h1>" + (done ? "✅ " : "") + esc(m.title) + "</h1>";
@@ -555,10 +591,29 @@
       '<div class="meta">' + esc(m.goal || "") + partial + lock + (state.skipped[m.id] ? " · skipped" : "") + "</div></div>";
     h += '<span class="row-tags">';
     if (m.time) h += '<span class="tag">~' + hours(m.time) + "</span>";
-    if (m.optional) h += '<span class="tag">optional</span>';
+    if (m.optional) h += '<span class="tag side-tag">side</span>';
     h += "</span>";
     if (drag) h += '<span class="move"><button class="icon-btn" data-move="up" data-id="' + m.id + '" aria-label="Move up">▲</button><button class="icon-btn" data-move="down" data-id="' + m.id + '" aria-label="Move down">▼</button></span>';
     return h + "</div>";
+  }
+
+  // Main quests, then side quests; alternate hunts tucked into their own group.
+  function questLists(pi, skipId, big) {
+    const list = tierList(pi).filter(function (m) { return m.id !== skipId; });
+    const main = list.filter(function (m) { return !m.optional; });
+    const side = list.filter(function (m) { return m.optional && !m.altQuest; });
+    const hunts = list.filter(function (m) { return m.altQuest; });
+    const tid = PHASES[pi].id;
+    const rows = function (ms) { return ms.map(function (m) { return missionRow(m, { drag: true }); }).join(""); };
+    const tag = big ? "h3" : "h4";
+    let h = "";
+    if (main.length) h += "<" + tag + ' class="section-title">⭐ Main quests <span class="muted small">· ' + main.filter(isDone).length + "/" + main.length + " done · drag or ▲▼ to reorder</span></" + tag + '><div class="tier-list" data-tierlist="' + tid + '">' + rows(main) + "</div>";
+    if (side.length) h += "<" + tag + ' class="section-title side-title">◇ Side quests <span class="muted small">· ' + side.filter(isDone).length + "/" + side.length + " done · pick whatever sounds fun</span></" + tag + '><div class="tier-list" data-tierlist="' + tid + '">' + rows(side) + "</div>";
+    if (hunts.length) {
+      h += '<details class="hunts"' + (state.focus === "alts" ? " open" : "") + "><summary>💾 Alternates to look for <span class=\"muted small\">· " + hunts.filter(isDone).length + "/" + hunts.length + " found</span></summary>";
+      h += '<div class="tier-list" data-tierlist="' + tid + '">' + rows(hunts) + "</div></details>";
+    }
+    return h;
   }
 
   function tierHeader(pi) {
@@ -568,7 +623,7 @@
     const left = req.filter(function (m) { return !isDone(m); }).reduce(function (a, m) { return a + (m.time || 0); }, 0);
     let h = '<div class="card"><div class="eyebrow">' + esc(p.tier) + "</div><h2>" + esc(p.title) + '</h2><div class="muted">' + md(p.blurb) + "</div>";
     h += '<div class="progress"><div style="width:' + pct(done, req.length) + '%"></div></div>';
-    h += '<div class="muted small">' + done + " of " + req.length + " required missions · about " + hours(left) + " of play left in this tier</div></div>";
+    h += '<div class="muted small">' + done + " of " + req.length + " main quests · about " + hours(left) + " of main-quest play left in this tier</div></div>";
     return h;
   }
 
@@ -577,18 +632,15 @@
     const m = currentMission();
     const pi = currentTier();
     if (!m && tierComplete(PHASES.length - 1)) {
-      return '<div class="card celebrate"><div class="big">🚀</div><h1>Project Assembly complete!</h1><p class="muted">Every required mission is ticked. Go chase the optional ones, or just enjoy the factory.</p></div>';
+      return '<div class="card celebrate"><div class="big">🚀</div><h1>Project Assembly complete!</h1><p class="muted">Every main quest is ticked. Go chase side quests, or just enjoy the factory.</p></div>';
     }
     let h = tierHeader(pi);
     h += focusPicker();
     if (m) h += missionBody(m.id, { current: true });
     h += goalBoard(pi);
-    h += '<h3 class="section-title">Everything in this tier <span class="muted small">· drag or use ▲▼ to reorder</span></h3>';
-    h += '<div class="tier-list" data-tierlist="' + PHASES[pi].id + '">';
-    tierList(pi).forEach(function (x) { if (!m || x.id !== m.id) h += missionRow(x, { drag: true }); });
-    h += "</div>";
+    h += questLists(pi, m ? m.id : null, true);
     if (pi + 1 < PHASES.length && !tierVisible(pi + 1)) {
-      h += '<div class="next-locked">🔒 Finish the required missions here and <strong>' + esc(PHASES[pi + 1].title) + "</strong> (" + esc(PHASES[pi + 1].tier) + ") unlocks.</div>";
+      h += '<div class="next-locked">🔒 Finish the main quests here and <strong>' + esc(PHASES[pi + 1].title) + "</strong> (" + esc(PHASES[pi + 1].tier) + ") unlocks.</div>";
     }
     return h;
   }
@@ -608,11 +660,9 @@
       const done = req.filter(isDone).length;
       const opt = p.missions.filter(function (m) { return m.optional; });
       h += '<section class="phase"><div class="phase-head"><div><div class="eyebrow">' + esc(p.tier) + "</div><h2>" + esc(p.title) + "</h2></div>";
-      h += '<div class="muted">' + done + " / " + req.length + (opt.length ? ' <span class="small">+ ' + opt.filter(isDone).length + "/" + opt.length + " optional</span>" : "") + "</div></div>";
+      h += '<div class="muted">' + done + " / " + req.length + " main" + (opt.length ? ' <span class="small">· ' + opt.filter(isDone).length + "/" + opt.length + " side</span>" : "") + "</div></div>";
       h += '<div class="progress"><div style="width:' + pct(done, req.length) + '%"></div></div>';
-      h += '<div class="tier-list" data-tierlist="' + p.id + '">';
-      tierList(pi).forEach(function (m) { h += missionRow(m, { drag: true }); });
-      h += "</div></section>";
+      h += questLists(pi, null, false) + "</section>";
     });
     return h;
   }
@@ -656,12 +706,12 @@
       if (prevBottom !== null) svg += arrow(X + MW / 2, prevBottom, y);
       const req = p.missions.filter(function (m) { return !m.optional; });
       svg += box(X, y, MW, MH + 4, locked ? "locked" : "phase", (locked ? "🔒 " : "") + p.tier + " · " + p.title,
-        locked ? "Unlocks after the tier above" : req.filter(isDone).length + " / " + req.length + " required missions", null, locked);
+        locked ? "Unlocks after the tier above" : req.filter(isDone).length + " / " + req.length + " main quests", null, locked);
       const phaseMid = y + (MH + 4) / 2;
       prevBottom = y + MH + 4;
       y = prevBottom + GY;
       if (locked) return;
-      const list = tierList(pi);
+      const list = tierList(pi).filter(function (m) { return !m.altQuest; });
       let sy = y;
       list.filter(function (m) { return m.optional; }).forEach(function (s) {
         svg += '<path d="M' + (X + MW) + "," + phaseMid + " C" + (SX - 40) + "," + phaseMid + " " + (SX - 40) + "," + (sy + SH / 2) + " " + SX + "," + (sy + SH / 2) + '" fill="none" stroke="#6fa8dc" stroke-width="1.4" stroke-dasharray="4 4"/>';
@@ -682,7 +732,7 @@
     maxY = Math.max(maxY, y);
     const width = SX + SW + 30;
     let h = focusPicker();
-    h += '<div class="legend"><span><i style="background:#fa9549"></i>Current</span><span><i style="background:#5fbf77"></i>Done</span><span><i style="background:#5b6170"></i>Required</span><span><i style="background:#6fa8dc"></i>Optional</span><span>Click any box to open it</span></div>';
+    h += '<div class="legend"><span><i style="background:#fa9549"></i>Current</span><span><i style="background:#5fbf77"></i>Done</span><span><i style="background:#5b6170"></i>Main quest</span><span><i style="background:#6fa8dc"></i>Side quest</span><span>Click any box to open it</span></div>';
     h += '<div class="diagram-wrap"><svg width="' + width + '" height="' + maxY + '" viewBox="0 0 ' + width + " " + maxY + '">' +
       '<defs><marker id="farr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#5b6170"/></marker></defs>' +
       svg + "</svg></div>";
@@ -698,7 +748,7 @@
       const visible = tierVisible(pi);
       if (!visible && pi !== lockedPi) return;
       const g = { p: p, pi: pi, locked: !visible, start: leaves.length };
-      if (visible) tierList(pi).forEach(function (m) { leaves.push({ m: m }); });
+      if (visible) tierList(pi).forEach(function (m) { if (!m.altQuest) leaves.push({ m: m }); });
       else leaves.push({ lockedPhase: true });
       // Pad small groups with empty slots so every tier gets a fair slice of the circle.
       while (leaves.length - g.start < 5) leaves.push({ gap: true });
@@ -743,7 +793,7 @@
       '<text x="' + cx + '" y="' + (cy - 8) + '" text-anchor="middle" font-size="15" font-weight="700" fill="#fff">Project</text>' +
       '<text x="' + cx + '" y="' + (cy + 10) + '" text-anchor="middle" font-size="15" font-weight="700" fill="#fff">Assembly</text>' +
       '<text x="' + cx + '" y="' + (cy + 32) + '" text-anchor="middle" font-size="13" fill="#fa9549">' + pct(o.done, o.all) + "%</text></g>";
-    let h = '<div class="legend"><span><i style="background:#fa9549"></i>Current</span><span><i style="background:#5fbf77"></i>Done</span><span><i style="background:#6fa8dc"></i>Optional</span><span>Click a dot to open it</span></div>';
+    let h = '<div class="legend"><span><i style="background:#fa9549"></i>Current</span><span><i style="background:#5fbf77"></i>Done</span><span><i style="background:#6fa8dc"></i>Side quest</span><span>Click a dot to open it</span></div>';
     h += '<div class="diagram-wrap" id="mind-wrap"><svg width="' + size + '" height="' + size + '" viewBox="0 0 ' + size + " " + size + '">' + lines + nodes + "</svg></div>";
     return h;
   }
@@ -860,7 +910,7 @@
       if (i > pi + 1) return;
       p.missions.forEach(function (m) { if (!isDone(m)) (m.suggestAlts || []).forEach(function (a) { if (!owns(a)) wanted[a] = (wanted[a] || []).concat(m.title); }); });
     });
-    let h = '<h1>Alternate recipes</h1><p class="muted">Tick the ones you own. Modules you haven\'t built yet switch their math straight away; built modules get an optional upgrade mission.</p>';
+    let h = '<h1>Alternate recipes</h1><p class="muted">Tick the ones you own. Modules you haven\'t built yet switch their math straight away; built modules get an upgrade side quest.</p>';
     const keys = Object.keys(wanted);
     if (keys.length) {
       h += '<div class="card"><h2>Hunting for now</h2><ul class="facts">' + keys.map(function (a) { return "<li><strong>" + esc(altName(a)) + "</strong>: helps " + wanted[a].map(esc).join(", ") + "</li>"; }).join("") + "</ul></div>";
@@ -897,7 +947,7 @@
       });
     });
     let h = '<h1>Stats</h1><div class="stat-grid">';
-    h += stat("Required missions", o.done + " / " + o.all, pct(o.done, o.all) + "%");
+    h += stat("Main quests", o.done + " / " + o.all, pct(o.done, o.all) + "%");
     h += stat("Power", mw(pb.built), "using " + mw(pb.used));
     h += stat("Modules built", modules, "");
     h += stat("Play logged", hours(minutes), "from finished missions");
@@ -953,6 +1003,7 @@
   function render() {
     Object.keys(solveCache).forEach(function (k) { delete solveCache[k]; });
     upgrades();
+    altQuests();
     const view = VIEWS[state.view] ? state.view : "now";
     const wrap = viewEl.querySelector(".diagram-wrap");
     const keep = view === lastView && wrap ? { l: wrap.scrollLeft, t: wrap.scrollTop } : null;
@@ -965,7 +1016,7 @@
     const power = pb.built > 0
       ? '<span class="' + (pb.used > pb.built ? "bad" : "") + '">⚡ ' + mw(pb.used) + " / " + mw(pb.built) + "</span>"
       : "⚡ " + mw(pb.used) + " on the HUB burner";
-    document.getElementById("overall").innerHTML = o.done + " / " + o.all + " missions · " + pct(o.done, o.all) + "% · " + power;
+    document.getElementById("overall").innerHTML = o.done + " / " + o.all + " main quests · " + pct(o.done, o.all) + "% · " + power;
     const nwrap = viewEl.querySelector(".diagram-wrap");
     if (keep && nwrap) { nwrap.scrollLeft = keep.l; nwrap.scrollTop = keep.t; }
     else if (view === "mind" && nwrap) centerMind(nwrap);

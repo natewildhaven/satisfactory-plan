@@ -823,6 +823,90 @@ window.PHASES = [
         goal: "20+ Mercer Spheres total",
         steps: ["Upload upgrades keep getting more expensive (13 then 23 spheres). Put a radar tower near unexplored areas first."],
       },
+      {
+        id: "p6-sloops5", kind: "explore", time: 40, optional: true,
+        title: "Somersloops: collect 5",
+        goal: "5 Somersloops in storage",
+        steps: [
+          "Sweep a new area with the scanner set to Somersloop.",
+          "A Manufacturer takes 4 Somersloops to double its output, so 5 covers one machine with one to spare.",
+        ],
+      },
+      {
+        id: "p6-shards", kind: "explore", time: 30, optional: true,
+        title: "Overclock 3 miners with Power Shards",
+        goal: "3 miners running above 100%",
+        steps: [
+          "Each miner takes up to 3 Power Shards: 1 shard allows 150%, 2 allow 200%, 3 allow 250%.",
+          "Pick 3 miners on modules that need more ore and set their clock to the exact rate the module needs.",
+          "Overclocked machines use a lot more power, so check the power budget first.",
+        ],
+      },
+      {
+        id: "p6-coupons", kind: "production", time: 20, optional: true,
+        title: "AWESOME Sink: bank 50 coupons",
+        goal: "50 coupons printed and saved",
+        steps: [
+          "Make sure every module's overflow reaches a sink. Print coupons at the sink terminal.",
+          "Save 50, then spend them on whatever looks fun (Cyber Wagon, walkways, signs).",
+        ],
+      },
+      {
+        id: "p6-throughput", kind: "production", time: 30, optional: true,
+        title: "Throughput check on every module",
+        goal: "Every module's output matches the goal board",
+        steps: [
+          "Put a **Conveyor Throughput Monitor** on each module's output belt.",
+          "Compare each reading with the goal board. Fix any clock or miner that's off.",
+        ],
+      },
+      {
+        id: "p6-depot10", kind: "logistics", time: 30, optional: true, requires: ["p3-depot"],
+        title: "Depot: 10 different parts uploading",
+        goal: "10 kinds of building parts in the cloud",
+        steps: [
+          "Add uploaders until 10 different parts upload automatically. Good picks now: Computers, Heavy Modular Frames, Motors, Plastic, Rubber.",
+          "Build from the cloud for a whole session without walking to storage once.",
+        ],
+      },
+      {
+        id: "p6-train2", kind: "logistics", time: 60, optional: true, requires: ["p6-train", "p6-signal"],
+        title: "A second train on the same line",
+        goal: "Two trains sharing track safely",
+        steps: [
+          "Add a second loop of track or a passing siding, with **Block Signals** at each entry.",
+          "Use **Path Signals** where tracks merge or cross.",
+          "Add the second train and watch one full cycle of both without a stop.",
+        ],
+      },
+      {
+        id: "p6-pocket", kind: "mam", time: 30, optional: true,
+        title: "MAM: more inventory slots",
+        goal: "Inflated Pocket Dimension and Expanded Toolbelt",
+        steps: [
+          "Caterium tree: **Inflated Pocket Dimension** (200 Silica).",
+          "Sulfur tree: **Smokeless Powder** (100 Black Powder, 50 Plastic), then **Inflated Pocket Dimension** (50 Smokeless Powder, 50 Computer).",
+          "Sulfur tree: **Expanded Toolbelt** (100 Black Powder, 50 Encased Industrial Beam).",
+        ],
+      },
+      {
+        id: "p6-bpfloor", kind: "production", time: 45, optional: true, requires: ["p6-bp2"],
+        title: "Blueprint a whole factory floor",
+        goal: "One floor saved and stamped again",
+        steps: [
+          "Pick your tidiest floor (smelters or constructors) and save it as a Mk.2 blueprint.",
+          "Use it for the next copy of that module.",
+        ],
+      },
+      {
+        id: "p6-scout", kind: "explore", time: 45, optional: true,
+        title: "Scout bauxite and uranium",
+        goal: "Tier 7–8 sites picked before you need them",
+        steps: [
+          "Take the Explorer out to find **bauxite** with quartz and coal nearby (for Tier 7).",
+          "Also stamp **uranium** and a remote spot that could store nuclear waste later.",
+        ],
+      },
     ],
   },
   {
@@ -944,6 +1028,58 @@ window.PHASES = [
         title: "Depot upgrade: Upload 120/min",
         goal: "Faster uploads",
         steps: ["MAM: **Upload Upgrade: 120/min** (13 Mercer Sphere, 151 SAM Fluctuator)."],
+      },
+      {
+        id: "p7-spheres", kind: "explore", time: 45, optional: true,
+        title: "Mercer Sphere hunt #4",
+        goal: "40 Mercer Spheres collected in total",
+        steps: ["The 240/min upload upgrade needs 23 at once. Sweep a part of the map you haven't been to yet."],
+      },
+      {
+        id: "p7-sloops", kind: "explore", time: 45, optional: true,
+        title: "Somersloops: collect 10",
+        goal: "10 Somersloops in storage",
+        steps: ["Enough to double a second Manufacturer, with spares for the Alien Power Augmenter in Tier 9."],
+      },
+      {
+        id: "p7-battery", kind: "production", time: 45, optional: true, requires: ["p7-control"],
+        title: "Build Module: Batteries",
+        goal: "Batteries for drones",
+        steps: [
+          "Build at the aluminum outpost so Alumina Solution never travels. Sulfur comes in by belt or truck.",
+          "Batteries power Drones (Tier 8).",
+        ],
+        calc: { targets: { Battery: 10 }, supplied: ["Aluminum Casing"] },
+      },
+      {
+        id: "p7-priority", kind: "production", time: 20, optional: true, requires: ["p7-refine"],
+        title: "Priority Merger on the silica line",
+        goal: "Byproduct silica always used before fresh silica",
+        steps: [
+          "Needs **Material Resonance Screening** from the Quartz MAM tree.",
+          "Put a Priority Merger where byproduct silica and constructor silica meet. Byproduct goes on the priority input.",
+        ],
+      },
+      {
+        id: "p7-belts5", kind: "logistics", time: 30, optional: true, requires: ["p7-logmk5"],
+        title: "Upgrade the busiest belts to Mk.5",
+        goal: "No belt running at its limit",
+        steps: ["Use the Throughput Monitor to find belts at 270/min or 480/min and swap them to Mk.5 (780/min)."],
+      },
+      {
+        id: "p7-cyber", kind: "gear", time: 15, optional: true,
+        title: "Try it: Cyber Wagon",
+        goal: "Cyber Wagon bought and driven",
+        steps: ["AWESOME Shop: **Cyber Wagon** (20 coupons). Take it for a lap around your factories."],
+      },
+      {
+        id: "p7-mam-quartz", kind: "mam", time: 30, optional: true,
+        title: "MAM: Quartz tree, the rest",
+        goal: "Radio Signal Scanning researched",
+        steps: [
+          "**Signal Systems** (5 Crystal Oscillator, 5 Circuit Board) and **Radio Signal Scanning** (100 Crystal Oscillator, 100 Motor, 1 Object Scanner).",
+          "Radio Signal Scanning adds new things your Object Scanner can find.",
+        ],
       },
     ],
   },
@@ -1170,9 +1306,9 @@ window.PHASES = [
       },
       {
         id: "p9-wagon", kind: "gear", time: 15, optional: true,
-        title: "Try it: Cyber Wagon and Golden Cart",
+        title: "Try it: Golden Factory Cart",
         goal: "Every vehicle driven at least once",
-        steps: ["AWESOME Shop: **Cyber Wagon** (20 coupons) and **Golden Factory Cart** (50 coupons). Take them for a lap around your factories."],
+        steps: ["AWESOME Shop: **Golden Factory Cart** (50 coupons). Take it for a lap around your factories."],
       },
       {
         id: "p9-mam-all", kind: "mam", time: 60, optional: true,
@@ -1285,7 +1421,7 @@ window.RULES = [
     body: [
       "Standard recipes always work. Alternates make modules smaller, so the guide nudges you to hunt for specific ones before certain builds.",
       "When a hard drive offers a choice, take the highest-ranked one on the **Alternates** tab.",
-      "Tick what you own and missions switch their math. Modules you've already built get an optional **upgrade** mission instead.",
+      "Tick what you own and missions switch their math. Modules you've already built get an **upgrade** side quest instead.",
     ],
   },
   {
