@@ -34,56 +34,36 @@ window.PHASES = [
   {
     id: "p0",
     title: "Landing",
-    tier: "Tier 0 · HUB Upgrades",
-    blurb: "Get the HUB running and build your first real production lines. Every machine you place here gets reused for a long time.",
+    tier: "Tier 0 · Intro skipped",
+    blurb: "You skipped the intro, so Tier 0 is already unlocked. Place the HUB, get power going and build your first real production lines. Every machine you place here gets reused for a long time.",
     power: 90,
     missions: [
       {
-        id: "p0-land", kind: "milestone", time: 15,
-        title: "Land and claim your patch",
-        goal: "HUB built next to iron, copper and limestone",
+        id: "p0-land", kind: "milestone", time: 20,
+        title: "Land and set up the HUB",
+        goal: "HUB placed next to iron, copper and limestone",
         steps: [
-          "Land in the Rocky Desert. Before you unpack, walk the start area and find **one iron, one copper and one limestone node** close together.",
-          "Build the HUB on flat ground that's within belt distance of all three, but **not on top of them**.",
-          "Hand-mine about 50 Iron Ore and craft Iron Ingots → Iron Rods at the Craft Bench.",
-          "Turn in **HUB Upgrade 1**: 10 Iron Rod.",
+          "You skipped the intro, so all of Tier 0 (HUB Upgrades 1–6) is already unlocked: Smelters, Constructors, belts, Miners, storage, Biomass Burners and the Space Elevator.",
+          "Before you place anything, walk the start area and find **one iron, one copper and one limestone node** close together.",
+          "Build the HUB on flat ground within belt distance of all three, but **not on top of them**.",
+          "Open the HUB terminal and check Tier 0 shows as done. If it doesn't, turn in the HUB Upgrades first (the terminal shows each cost).",
+          "Drop the **Portable Miners** from your starting inventory on iron and copper so ore piles up while you build.",
         ],
       },
       {
-        id: "p0-hub2-4", kind: "milestone", time: 30, requires: ["p0-land"],
-        title: "HUB Upgrades 2–4 (hand-crafted)",
-        goal: "Smelter, Constructor and Conveyor Belts unlocked",
-        steps: [
-          "Place the Portable Miners from Upgrade 1 on iron and copper, so ore piles up while you craft.",
-          "**HUB Upgrade 2**: 20 Iron Rod, 10 Iron Plate (unlocks Smelter, Wire, Cable).",
-          "**HUB Upgrade 3**: 20 Iron Plate, 20 Iron Rod, 20 Wire (unlocks Constructor, Concrete, Screws).",
-          "**HUB Upgrade 4**: 75 Iron Plate, 20 Cable, 10 Concrete (unlocks Conveyor Belts).",
-          "Feed the HUB's built-in Biomass Burner leaves and wood from the area.",
-        ],
-      },
-      {
-        id: "p0-hub5", kind: "milestone", time: 15, requires: ["p0-hub2-4"],
-        title: "HUB Upgrade 5: Miners",
-        goal: "Miner Mk.1 and Storage Container unlocked",
-        steps: [
-          "**HUB Upgrade 5**: 75 Iron Rod, 50 Cable, 20 Concrete.",
-          "From now on, ore comes from Miners. A **Mk.1 Miner** gives 30 / 60 / 120 ore/min on an impure / normal / pure node.",
-        ],
-      },
-      {
-        id: "p0-iron", kind: "production", time: 30, requires: ["p0-hub5"],
+        id: "p0-iron", kind: "production", time: 30, requires: ["p0-hub6"],
         title: "Build Module: Starter Iron",
         goal: "Iron Plate, Iron Rod and Screws from one normal iron node",
         steps: [
           "Put a Mk.1 Miner on a **normal iron node** (60 ore/min).",
           "Build it floor by floor using the plan below. Set every clock exactly as shown.",
           "Belt every output into its own Storage Container next to the HUB.",
-          "If the power trips, finish this module before starting the next one. Real power comes in Tier 3.",
+          "Three Biomass Burners give 90 MW. Check the power line in the machine box before adding the next module.",
         ],
         calc: { targets: { "Iron Plate": 20, "Iron Rod": 15, Screws: 60 }, useAlts: ["Alternate: Cast Screws"] },
       },
       {
-        id: "p0-copper", kind: "production", time: 25, requires: ["p0-hub5"],
+        id: "p0-copper", kind: "production", time: 25, requires: ["p0-hub6"],
         title: "Build Module: Starter Copper",
         goal: "Wire and Cable from one normal copper node",
         steps: [
@@ -94,7 +74,7 @@ window.PHASES = [
         calc: { targets: { Wire: 60, Cable: 30 } },
       },
       {
-        id: "p0-concrete", kind: "production", time: 15, requires: ["p0-hub5"],
+        id: "p0-concrete", kind: "production", time: 15, requires: ["p0-hub6"],
         title: "Build Module: Concrete",
         goal: "Concrete from one normal limestone node",
         steps: [
@@ -104,13 +84,12 @@ window.PHASES = [
         calc: { targets: { Concrete: 20 } },
       },
       {
-        id: "p0-hub6", kind: "milestone", time: 20, requires: ["p0-iron", "p0-copper", "p0-concrete"], produces: 90,
-        title: "HUB Upgrade 6: Space Elevator",
-        goal: "Space Elevator placed, 3 Biomass Burners running, Tier 1 open",
+        id: "p0-hub6", kind: "power", time: 20, requires: ["p0-land"], produces: 90,
+        title: "First power and the Space Elevator",
+        goal: "3 Biomass Burners running, Space Elevator placed",
         steps: [
-          "**HUB Upgrade 6**: 100 Iron Rod, 100 Iron Plate, 100 Wire, 50 Concrete.",
+          "Build **3 Biomass Burners** (30 MW each, 90 MW total). Each burns 10 Biomass/min: collect leaves and wood, craft Biomass at the Craft Bench and keep them fed by hand until Coal Power in Tier 3.",
           "Build the **Space Elevator** somewhere central with room around it. It's a permanent landmark, so take your time choosing the spot.",
-          "Build **3 Biomass Burners** (30 MW each, 90 MW total). Each burns 10 Biomass/min. Keep them fed by hand until Coal Power in Tier 3.",
         ],
       },
       {
@@ -142,11 +121,11 @@ window.PHASES = [
         ],
       },
       {
-        id: "p0-portable", kind: "gear", time: 10, optional: true, requires: ["p0-hub2-4"],
-        title: "Try it: Portable Miners on 3 nodes",
-        goal: "3 Portable Miners collecting ore",
+        id: "p0-portable", kind: "gear", time: 10, optional: true, requires: ["p0-land"],
+        title: "Try it: all 4 Portable Miners",
+        goal: "4 Portable Miners collecting ore",
         steps: [
-          "Craft 2 more Portable Miners at the Equipment Workshop and drop them on iron, copper and limestone.",
+          "You start with 4 Portable Miners. Put one each on iron, copper, limestone and a fourth node.",
           "Empty them when you pass by. They're slow, but free ore while you hand-craft.",
         ],
       },

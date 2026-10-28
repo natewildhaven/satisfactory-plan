@@ -12,6 +12,8 @@
       steps: {}, alts: [], spoilers: false, view: "now", focus: "balanced",
       order: {}, rates: {}, tierPower: {}, builtWith: {}, skipped: {}, dismissed: {},
       notes: {}, routes: [], calcIn: {},
+      listLayout: "stacked", listScope: "all", hideDone: false, tagFilter: [],
+      queue: [], collapsed: {},
     }, over || {});
   }
   let state = load();
@@ -24,7 +26,86 @@
     return fresh();
   }
   function save() {
+    state.savedAt = Date.now();
+    saveLocal();
+    queueCloud();
+  }
+  function saveLocal() {
     try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); } catch (e) { /* ignore */ }
+  }
+
+  // ---------- sync across devices ----------
+  // On claude.ai the page can keep your progress in your account (private to you),
+  // so any browser or device you sign in on picks up where you left off.
+  // Anywhere else it stays in this browser and the progress code moves it.
+  let cloud = null; // document reference once connected
+  let cloudStatus = "local"; // local | connecting | synced | saving | offline
+  let cloudBusy = false, cloudAgain = false, cloudTimer = null;
+  function adopt(remote) {
+    const keepView = state.view;
+    state = fresh(Object.assign({}, remote, { view: keepView }));
+    saveLocal();
+    render();
+  }
+  function queueCloud() {
+    if (!cloud) return;
+    clearTimeout(cloudTimer);
+    cloudTimer = setTimeout(pushCloud, 1200);
+  }
+  async function pushCloud() {
+    if (!cloud) return;
+    if (cloudBusy) { cloudAgain = true; return; }
+    cloudBusy = true;
+    setCloudStatus("saving");
+    try {
+      await cloud.set({ state: JSON.stringify(state), savedAt: state.savedAt || Date.now() });
+      setCloudStatus("synced");
+    } catch (e) {
+      setCloudStatus("offline");
+    }
+    cloudBusy = false;
+    if (cloudAgain) { cloudAgain = false; pushCloud(); }
+  }
+  function setCloudStatus(s) {
+    cloudStatus = s;
+    document.querySelectorAll(".sync").forEach(function (el) { el.innerHTML = syncLabel(); });
+  }
+  function syncLabel() {
+    return {
+      local: "💾 Saved in this browser",
+      connecting: "☁ Connecting…",
+      synced: "☁ Synced to your account",
+      saving: "☁ Saving…",
+      offline: "⚠ Sync paused, saved in this browser",
+    }[cloudStatus];
+  }
+  async function initCloud() {
+    if (!window.claude || typeof window.claude.use !== "function") return;
+    setCloudStatus("connecting");
+    try {
+      const db = await window.claude.use("db");
+      const user = await window.claude.use("user");
+      const uid = db && user ? await user.id() : null;
+      if (!uid) { setCloudStatus("local"); return; }
+      cloud = db.doc("data/users/" + uid + "/progress");
+      const snap = await cloud.get();
+      const remote = snap.exists ? snap.data() : null;
+      if (remote && typeof remote.state === "string" && (remote.savedAt || 0) > (state.savedAt || 0)) {
+        adopt(JSON.parse(remote.state));
+        setCloudStatus("synced");
+      } else {
+        await pushCloud();
+      }
+      // Pick up changes made on another device while this one is open.
+      cloud.onSnapshot(function (s) {
+        if (!s.exists || s.metadata.hasPendingWrites) return;
+        const d = s.data();
+        if (d && typeof d.state === "string" && (d.savedAt || 0) > (state.savedAt || 0)) adopt(JSON.parse(d.state));
+      }, function () { setCloudStatus("offline"); });
+    } catch (e) {
+      cloud = null;
+      setCloudStatus("offline");
+    }
   }
 
   // ---------- model ----------
@@ -87,6 +168,7 @@
     const now = isDone(m);
     if (now && !before) {
       delete state.skipped[m.id];
+      state.queue = state.queue.filter(function (q) { return q !== m.id; });
       if (m.upgradeOf) state.builtWith[m.upgradeOf] = m.newAlts.slice();
       else if (m.calc) state.builtWith[m.id] = altsFor(m);
       celebrate(m);
@@ -151,7 +233,8 @@
             "Watch the output belt for 5 minutes to confirm it still hits the same rate.",
           ],
         };
-        upgradeIndex[id] = { m: u, phase: p, pi: pi, n: 999 };
+        const ct = currentTier();
+        upgradeIndex[id] = { m: u, phase: PHASES[ct], pi: ct, n: 999 };
         list.push(u);
       });
     });
@@ -246,7 +329,13 @@
     }
     return out;
   }
+  function liveQueue() {
+    return state.queue.map(function (id) { return info(id); }).filter(function (x) { return x && !isDone(x.m); }).map(function (x) { return x.m; });
+  }
   function currentMission() {
+    // Your queue comes first, skipping anything still waiting on another quest.
+    const ready = liveQueue().find(requiresMet);
+    if (ready) return ready;
     const pi = currentTier();
     const list = tierList(pi);
     return list.find(function (m) { return !isDone(m) && requiresMet(m) && !state.skipped[m.id]; }) ||
@@ -331,6 +420,7 @@
     h += '<div class="row" style="margin-top:14px">';
     if (!done) {
       h += '<button class="btn primary" data-done="' + id + '">✓ Mark quest done</button>';
+      h += '<button class="btn" data-qtoggle="' + id + '">' + (state.queue.indexOf(id) !== -1 ? "Remove from queue" : "📋 Add to queue") + "</button>";
       if (!state.skipped[id]) h += '<button class="btn" data-skip="' + id + '">Skip for now</button>';
       else h += '<button class="btn" data-unskip="' + id + '">Unskip</button>';
       if (m.upgradeOf) h += '<button class="btn" data-dismiss="' + id + '">Not worth it</button>';
@@ -584,36 +674,55 @@
     const partial = !done && doneCount(m) > 0 ? " · " + doneCount(m) + "/" + visibleSteps(m).length + " steps" : "";
     const lock = blocked ? " · 🔒 after " + blockers(m).map(function (b) { return trunc(b.title, 28); }).join(", ") : "";
     const drag = opts && opts.drag;
-    let h = '<div class="' + cls + '" draggable="' + (drag ? "true" : "false") + '" data-row="' + m.id + '" data-tier="' + inf.phase.id + '">';
+    const compact = opts && opts.compact;
+    const inQueue = opts && opts.queue;
+    const queued = state.queue.indexOf(m.id) !== -1;
+    let h = '<div class="' + cls + '" draggable="' + (drag ? "true" : "false") + '" data-row="' + m.id + '" data-tier="' + (inQueue ? "queue" : inf.phase.id) + '">';
     if (drag) h += '<span class="grip" aria-hidden="true">⋮⋮</span>';
     h += '<input type="checkbox" title="Tick the whole quest" data-mission="' + m.id + '"' + (done ? " checked" : "") + ">";
     h += '<div class="name" data-open="' + m.id + '"><span class="kind-ic" title="' + esc(kindLabel(m.kind)) + '">' + KIND_ICON[m.kind] + "</span> " + esc(m.title) +
-      '<div class="meta">' + esc(m.goal || "") + partial + lock + (state.skipped[m.id] ? " · skipped" : "") + "</div></div>";
+      '<div class="meta">' + (opts && opts.tierLabel ? "Tier " + inf.pi + " · " : "") + esc(m.goal || "") + partial + lock + (state.skipped[m.id] ? " · skipped" : "") + "</div></div>";
     h += '<span class="row-tags">';
     if (m.time) h += '<span class="tag">~' + hours(m.time) + "</span>";
-    if (m.optional) h += '<span class="tag side-tag">' + esc(kindLabel(m.kind)) + "</span>";
+    if (compact) h += m.optional ? '<span class="tag side-tag">Side</span>' : '<span class="tag main-tag">Main</span>';
+    else if (m.optional) h += '<span class="tag side-tag">' + esc(kindLabel(m.kind)) + "</span>";
     h += "</span>";
+    if (inQueue) h += '<button class="q-btn queued" data-unqueue="' + m.id + '" aria-label="Remove from queue">✕</button>';
+    else if (!done) h += '<button class="q-btn' + (queued ? " queued" : "") + '" data-qtoggle="' + m.id + '">' + (queued ? "✓ Queued" : "+ Queue") + "</button>";
     if (drag) h += '<span class="move"><button class="icon-btn" data-move="up" data-id="' + m.id + '" aria-label="Move up">▲</button><button class="icon-btn" data-move="down" data-id="' + m.id + '" aria-label="Move down">▼</button></span>';
     return h + "</div>";
   }
 
+  // A collapsible section with a count badge. Open/closed is remembered per key.
+  function section(key, title, count, body, cls, closedByDefault) {
+    const closed = state.collapsed[key] !== undefined ? state.collapsed[key] : !!closedByDefault;
+    return '<details class="sect ' + (cls || "") + '" data-key="' + esc(key) + '" data-default="' + (closedByDefault ? "closed" : "open") + '"' + (closed ? "" : " open") + '><summary><span class="sect-title">' + title + '</span><span class="count">' + count + "</span></summary>" + body + "</details>";
+  }
+  function doneOf(ms) { return ms.filter(isDone).length + "/" + ms.length; }
+  const EMPTY = '<div class="muted small empty">Nothing here with these filters.</div>';
+
+  function queuePanel() {
+    const q = liveQueue();
+    const body = q.length
+      ? '<div class="tier-list" data-tierlist="queue">' + q.map(function (m) { return missionRow(m, { drag: true, queue: true, tierLabel: true }); }).join("") + "</div>"
+      : '<div class="muted small empty">Empty. Press <strong>+ Queue</strong> on any quest to line it up here. The first one in the queue becomes your current quest.</div>';
+    return section("queue", "📋 My queue", q.length, body, "queue-card");
+  }
+
   // Main quests, then side quests; alternate hunts tucked into their own group.
-  function questLists(pi, skipId, big) {
-    const list = tierList(pi).filter(function (m) { return m.id !== skipId; });
+  // keep: optional filter; columns: put main and side quests side by side.
+  function questLists(pi, skipId, big, keep, columns) {
+    const list = tierList(pi).filter(function (m) { return m.id !== skipId && (!keep || keep(m)); });
     const main = list.filter(function (m) { return !m.optional; });
     const side = list.filter(function (m) { return m.optional && !m.altQuest; });
     const hunts = list.filter(function (m) { return m.altQuest; });
     const tid = PHASES[pi].id;
-    const rows = function (ms) { return ms.map(function (m) { return missionRow(m, { drag: true }); }).join(""); };
-    const tag = big ? "h3" : "h4";
-    let h = "";
-    if (main.length) h += "<" + tag + ' class="section-title">⭐ Main quests <span class="muted small">· ' + main.filter(isDone).length + "/" + main.length + " done · drag or ▲▼ to reorder</span></" + tag + '><div class="tier-list" data-tierlist="' + tid + '">' + rows(main) + "</div>";
-    if (side.length) h += "<" + tag + ' class="section-title side-title">◇ Side quests <span class="muted small">· ' + side.filter(isDone).length + "/" + side.length + " done · pick whatever sounds fun</span></" + tag + '><div class="tier-list" data-tierlist="' + tid + '">' + rows(side) + "</div>";
-    if (hunts.length) {
-      h += '<details class="hunts"' + (state.focus === "alts" ? " open" : "") + "><summary>💾 Alternates to look for <span class=\"muted small\">· " + hunts.filter(isDone).length + "/" + hunts.length + " found</span></summary>";
-      h += '<div class="tier-list" data-tierlist="' + tid + '">' + rows(hunts) + "</div></details>";
-    }
-    return h;
+    const rows = function (ms) { return '<div class="tier-list" data-tierlist="' + tid + '">' + (ms.map(function (m) { return missionRow(m, { drag: true }); }).join("") || EMPTY) + "</div>"; };
+    let a = "", b = "";
+    if (main.length || columns) a = section(tid + ":main", "⭐ Main quests", doneOf(main), rows(main), "main-sect");
+    if (side.length || columns) b = section(tid + ":side", "◇ Side quests", doneOf(side), rows(side), "side-sect");
+    if (hunts.length) b += section(tid + ":hunts", "💾 Alternates to look for", doneOf(hunts), rows(hunts), "hunt-sect", state.focus !== "alts");
+    return columns ? '<div class="two-col"><div class="col">' + a + '</div><div class="col">' + b + "</div></div>" : a + b;
   }
 
   function tierHeader(pi) {
@@ -636,6 +745,7 @@
     }
     let h = tierHeader(pi);
     h += focusPicker();
+    h += queuePanel();
     if (m) h += missionBody(m.id, { current: true });
     h += goalBoard(pi);
     h += questLists(pi, m ? m.id : null, true);
@@ -645,27 +755,113 @@
     return h;
   }
 
+  // ---------- list view: several layouts and filters ----------
+  const LAYOUTS = [
+    { id: "stacked", label: "Stacked" },
+    { id: "columns", label: "Main | Side" },
+    { id: "tags", label: "By tag" },
+    { id: "status", label: "By status" },
+    { id: "table", label: "Table" },
+  ];
+  function listTags() {
+    return [{ id: "milestone", label: "Milestone", icon: KIND_ICON.milestone }].concat(FOCUS.slice(1));
+  }
+  function listKeep(m) {
+    if (state.hideDone && isDone(m)) return false;
+    if (state.tagFilter.length && state.tagFilter.indexOf(m.kind) === -1) return false;
+    return true;
+  }
+  function listTiers() {
+    const out = [];
+    PHASES.forEach(function (p, pi) {
+      if (!tierVisible(pi)) return;
+      if (state.listScope === "tier" && pi !== currentTier()) return;
+      out.push(pi);
+    });
+    return out;
+  }
+  function listToolbar() {
+    let h = '<div class="toolbar">';
+    h += '<div class="tool-group"><span class="focus-label">Layout</span><span class="seg">' + LAYOUTS.map(function (l) {
+      return '<button data-layout="' + l.id + '" class="' + (state.listLayout === l.id ? "active" : "") + '">' + l.label + "</button>";
+    }).join("") + "</span></div>";
+    h += '<div class="tool-group"><span class="focus-label">Show</span><span class="seg">' +
+      '<button data-scope="tier" class="' + (state.listScope === "tier" ? "active" : "") + '">This tier</button>' +
+      '<button data-scope="all" class="' + (state.listScope !== "tier" ? "active" : "") + '">All unlocked tiers</button></span>' +
+      '<label class="check"><input type="checkbox" id="hide-done"' + (state.hideDone ? " checked" : "") + "> Hide done</label></div>";
+    h += '<div class="tool-group tags"><span class="focus-label">Tags</span>' + listTags().map(function (t) {
+      const on = state.tagFilter.indexOf(t.id) !== -1;
+      return '<button class="chip-btn' + (on ? " active" : "") + '" data-tag="' + t.id + '">' + t.icon + " " + esc(t.label) + "</button>";
+    }).join("") + (state.tagFilter.length ? '<button class="chip-btn ghost" data-tag="">✕ Clear tags</button>' : "") + "</div>";
+    return h + "</div>";
+  }
+
   function renderList() {
-    let h = focusPicker();
+    let h = listToolbar() + queuePanel();
+    const layout = state.listLayout;
+    const tiers = listTiers();
+    const many = tiers.length > 1;
+    const all = [];
+    tiers.forEach(function (pi) { tierList(pi).forEach(function (m) { if (listKeep(m)) all.push(m); }); });
+    const rowOpts = { tierLabel: many, compact: true };
+
+    if (layout === "tags") {
+      h += '<div class="board wrap">';
+      listTags().forEach(function (t) {
+        const ms = all.filter(function (m) { return m.kind === t.id; });
+        if (!ms.length) return;
+        h += section("tag:" + t.id, t.icon + " " + esc(t.label), doneOf(ms), ms.map(function (m) { return missionRow(m, rowOpts); }).join(""), "board-col");
+      });
+      return h + "</div>" + (all.length ? "" : emptyNote());
+    }
+    if (layout === "status") {
+      const groups = [
+        { label: "▶ Ready now", ms: all.filter(function (m) { return !isDone(m) && requiresMet(m); }) },
+        { label: "🔒 Waiting on something", ms: all.filter(function (m) { return !isDone(m) && !requiresMet(m); }) },
+        { label: "✓ Done", ms: all.filter(isDone) },
+      ];
+      h += '<div class="board">';
+      groups.forEach(function (g, i) {
+        h += section("status:" + i, g.label, g.ms.length, g.ms.map(function (m) { return missionRow(m, rowOpts); }).join("") || '<div class="muted small empty">Nothing here.</div>', "board-col");
+      });
+      return h + "</div>";
+    }
+    if (layout === "table") {
+      if (!all.length) return h + emptyNote();
+      h += '<div class="table-wrap"><table class="quest-table"><thead><tr><th></th><th>Quest</th><th>Tier</th><th>Type</th><th>Tag</th><th>Time</th><th>Status</th></tr></thead><tbody>';
+      all.forEach(function (m) {
+        const done = isDone(m);
+        const status = done ? "✓ Done" : requiresMet(m) ? (doneCount(m) ? "In progress" : "Ready") : "🔒 Waiting";
+        h += '<tr class="' + (done ? "done" : "") + '"><td><input type="checkbox" data-mission="' + esc(m.id) + '"' + (done ? " checked" : "") + ' aria-label="Done"></td>';
+        h += '<td><a href="#" data-open="' + esc(m.id) + '">' + esc(m.title) + "</a></td><td class='num'>" + info(m.id).pi + "</td>";
+        h += "<td>" + (m.optional ? '<span class="tag side-tag">Side</span>' : '<span class="tag main-tag">Main</span>') + "</td>";
+        h += "<td>" + KIND_ICON[m.kind] + " " + esc(kindLabel(m.kind)) + "</td><td class='num'>" + (m.time ? "~" + hours(m.time) : "") + "</td><td>" + status + "</td></tr>";
+      });
+      return h + "</tbody></table></div>";
+    }
+
+    // Stacked or Main | Side columns, one section per tier.
     let shownLocked = false;
     PHASES.forEach(function (p, pi) {
       if (!tierVisible(pi)) {
-        if (!shownLocked) {
+        if (!shownLocked && state.listScope !== "tier") {
           h += '<div class="locked-phase">🔒 <strong>' + esc(p.tier) + "</strong> unlocks when you finish " + esc(PHASES[pi - 1].title) + ".</div>";
           shownLocked = true;
         }
         return;
       }
+      if (tiers.indexOf(pi) === -1) return;
       const req = p.missions.filter(function (m) { return !m.optional; });
       const done = req.filter(isDone).length;
       const opt = p.missions.filter(function (m) { return m.optional; });
-      h += '<section class="phase"><div class="phase-head"><div><div class="eyebrow">' + esc(p.tier) + "</div><h2>" + esc(p.title) + "</h2></div>";
-      h += '<div class="muted">' + done + " / " + req.length + " main" + (opt.length ? ' <span class="small">· ' + opt.filter(isDone).length + "/" + opt.length + " side</span>" : "") + "</div></div>";
-      h += '<div class="progress"><div style="width:' + pct(done, req.length) + '%"></div></div>';
-      h += questLists(pi, null, false) + "</section>";
+      const title = '<span class="eyebrow">' + esc(p.tier) + "</span><span class=\"tier-name\">" + esc(p.title) + "</span>";
+      const count = done + "/" + req.length + " main" + (opt.length ? " · " + opt.filter(isDone).length + "/" + opt.length + " side" : "");
+      const body = '<div class="progress"><div style="width:' + pct(done, req.length) + '%"></div></div>' + questLists(pi, null, false, listKeep, layout === "columns");
+      h += section("tier:" + p.id, title, count, body, "phase", pi < currentTier() && state.listScope !== "tier");
     });
     return h;
   }
+  function emptyNote() { return '<div class="muted empty">No quests match these filters.</div>'; }
 
   function nodeState(m) {
     if (isDone(m)) return "done";
@@ -982,7 +1178,10 @@
     let h = "<h1>Settings</h1>";
     h += '<div class="card"><h2>Reveal</h2><label class="toggle"><input type="checkbox" id="spoilers"' + (state.spoilers ? " checked" : "") + '><span><strong>Show every tier</strong><br><span class="muted">Useful to catch up if you\'re already further in the game. Tick what you\'ve done, then switch it back off.</span></span></label></div>';
     h += '<div class="card"><h2>Order</h2><p class="muted">You\'ve set your own order in ' + Object.keys(state.order).length + ' tier(s). Clearing it goes back to the focus order.</p><button class="btn" data-resetorder>Clear my manual order</button></div>';
-    h += '<div class="card"><h2>Save & backup</h2><p class="muted">Progress saves automatically in this browser. To back it up or move it to another browser, copy your progress code and paste it in there.</p>';
+    h += '<div class="card"><h2>Save & sync</h2><p class="muted">' + (cloud
+      ? "Your progress is saved to your claude.ai account, so it follows you to any browser or device where you open this page signed in. It's also kept in this browser as a backup."
+      : "Progress is saved in this browser. Opened from claude.ai while signed in, it also syncs to your account. Otherwise, use the progress code below to move it.") + '</p><p class="small">Status: <span class="sync">' + syncLabel() + "</span></p>";
+    h += '<p class="muted">Progress code: a backup you can paste into any copy of this guide (for example a GitHub Pages version).</p>';
     h += '<label class="calc-section" for="backup">Progress code</label><textarea id="backup" class="backup" rows="3" spellcheck="false">' + esc(JSON.stringify(state)) + "</textarea>";
     h += '<div class="row"><button class="btn" id="copy">Copy code</button><button class="btn" id="load">Load pasted code</button>';
     h += resetArmed
@@ -1008,7 +1207,8 @@
     const wrap = viewEl.querySelector(".diagram-wrap");
     const keep = view === lastView && wrap ? { l: wrap.scrollLeft, t: wrap.scrollTop } : null;
     const sy = window.scrollY;
-    viewEl.className = view === "mind" || view === "flow" ? "wide" : "";
+    const wideList = view === "list" && state.listLayout !== "stacked";
+    viewEl.className = view === "mind" || view === "flow" || wideList ? "wide" : "";
     viewEl.innerHTML = VIEWS[view]();
     document.querySelectorAll("#tabs button").forEach(function (b) { b.classList.toggle("active", b.dataset.view === view); });
     const o = overall();
@@ -1016,7 +1216,7 @@
     const power = pb.built > 0
       ? '<span class="' + (pb.used > pb.built ? "bad" : "") + '">⚡ ' + mw(pb.used) + " / " + mw(pb.built) + "</span>"
       : "⚡ " + mw(pb.used) + " on the HUB burner";
-    document.getElementById("overall").innerHTML = o.done + " / " + o.all + " main quests · " + pct(o.done, o.all) + "% · " + power;
+    document.getElementById("overall").innerHTML = o.done + " / " + o.all + " main quests · " + pct(o.done, o.all) + "% · " + power + ' · <span class="sync">' + syncLabel() + "</span>";
     const nwrap = viewEl.querySelector(".diagram-wrap");
     if (keep && nwrap) { nwrap.scrollLeft = keep.l; nwrap.scrollTop = keep.t; }
     else if (view === "mind" && nwrap) centerMind(nwrap);
@@ -1075,15 +1275,22 @@
   }
 
   // ---------- ordering ----------
-  function moveMission(id, tierId, toIndex) {
+  function orderOf(tierId) {
+    if (tierId === "queue") return liveQueue().map(function (m) { return m.id; });
     const pi = PHASES.findIndex(function (p) { return p.id === tierId; });
-    const ids = tierList(pi).map(function (m) { return m.id; });
+    return tierList(pi).map(function (m) { return m.id; });
+  }
+  function setOrder(tierId, ids) {
+    if (tierId === "queue") state.queue = ids; else state.order[tierId] = ids;
+    save(); render();
+  }
+  function moveMission(id, tierId, toIndex) {
+    const ids = orderOf(tierId);
     const from = ids.indexOf(id);
     if (from === -1) return;
     ids.splice(from, 1);
     ids.splice(Math.max(0, Math.min(ids.length, toIndex)), 0, id);
-    state.order[tierId] = ids;
-    save(); render();
+    setOrder(tierId, ids);
   }
 
   // ---------- events ----------
@@ -1097,6 +1304,7 @@
       if (t.checked) state.alts.push(name);
       save(); render();
     } else if (t.id === "spoilers") { state.spoilers = t.checked; save(); render(); }
+    else if (t.id === "hide-done") { state.hideDone = t.checked; save(); render(); }
     else if (t.dataset.rate) {
       const v = parseFloat(t.value);
       if (v > 0) state.rates[t.dataset.rate] = v; else delete state.rates[t.dataset.rate];
@@ -1130,9 +1338,18 @@
   });
 
   document.addEventListener("click", function (e) {
-    const t = e.target.closest("[data-view],[data-open],[data-done],[data-undo],[data-skip],[data-unskip],[data-dismiss],[data-calcmode],[data-close],[data-focus],[data-resetorder],[data-move],[data-delroute],#copy,#load,#reset,#reset-yes,#reset-no");
+    const t = e.target.closest("[data-qtoggle],[data-unqueue],[data-layout],[data-scope],[data-tag],[data-view],[data-open],[data-done],[data-undo],[data-skip],[data-unskip],[data-dismiss],[data-calcmode],[data-close],[data-focus],[data-resetorder],[data-move],[data-delroute],#copy,#load,#reset,#reset-yes,#reset-no");
     if (!t) return;
     if (t.tagName === "A") e.preventDefault();
+    if (t.dataset.layout) { state.listLayout = t.dataset.layout; save(); render(); return; }
+    if (t.dataset.scope) { state.listScope = t.dataset.scope; save(); render(); return; }
+    if (t.dataset.tag !== undefined) {
+      const tg = t.dataset.tag;
+      if (!tg) state.tagFilter = [];
+      else if (state.tagFilter.indexOf(tg) === -1) state.tagFilter = state.tagFilter.concat([tg]);
+      else state.tagFilter = state.tagFilter.filter(function (x) { return x !== tg; });
+      save(); render(); return;
+    }
     if (t.dataset.view) { state.view = t.dataset.view; save(); render(); window.scrollTo(0, 0); }
     else if (t.dataset.open) openDrawer(t.dataset.open);
     else if (t.dataset.done) { setMission(t.dataset.done, true); render(); }
@@ -1145,10 +1362,15 @@
     else if (t.hasAttribute("data-resetorder")) { state.order = {}; save(); render(); }
     else if (t.dataset.move) {
       const row = t.closest("[data-row]");
-      const pi = PHASES.findIndex(function (p) { return p.id === row.dataset.tier; });
-      const ids = tierList(pi).map(function (m) { return m.id; });
-      const i = ids.indexOf(t.dataset.id);
+      const i = orderOf(row.dataset.tier).indexOf(t.dataset.id);
       moveMission(t.dataset.id, row.dataset.tier, i + (t.dataset.move === "up" ? -1 : 1));
+    } else if (t.dataset.qtoggle) {
+      const id = t.dataset.qtoggle;
+      state.queue = state.queue.indexOf(id) === -1 ? state.queue.concat([id]) : state.queue.filter(function (q) { return q !== id; });
+      save(); render();
+    } else if (t.dataset.unqueue) {
+      state.queue = state.queue.filter(function (q) { return q !== t.dataset.unqueue; });
+      save(); render();
     } else if (t.dataset.delroute) { state.routes = state.routes.filter(function (_, i) { return i !== +t.dataset.delroute; }); save(); render(); }
     else if (t.hasAttribute("data-close")) closeDrawer();
     else if (t.id === "copy") {
@@ -1179,7 +1401,7 @@
   });
 
   // Drag to reorder within a tier.
-  let dragId = null;
+  let dragId = null, dragTier = null;
   function clearDropMarks() {
     document.querySelectorAll(".dragging,.drop-before,.drop-after").forEach(function (el) { el.classList.remove("dragging", "drop-before", "drop-after"); });
   }
@@ -1187,6 +1409,7 @@
     const row = e.target.closest && e.target.closest("[data-row]");
     if (!row || row.getAttribute("draggable") !== "true") return;
     dragId = row.dataset.row;
+    dragTier = row.dataset.tier;
     row.classList.add("dragging");
     try { e.dataTransfer.setData("text/plain", dragId); e.dataTransfer.effectAllowed = "move"; } catch (err) { /* ignore */ }
   });
@@ -1204,19 +1427,30 @@
     e.preventDefault();
     const id = dragId;
     dragId = null;
-    const src = document.querySelector('[data-row="' + CSS.escape(id) + '"]');
-    if (!src || src.dataset.tier !== row.dataset.tier || row.dataset.row === id) { clearDropMarks(); return; }
-    const pi = PHASES.findIndex(function (p) { return p.id === row.dataset.tier; });
-    const ids = tierList(pi).map(function (m) { return m.id; }).filter(function (x) { return x !== id; });
+    if (dragTier !== row.dataset.tier || row.dataset.row === id) { clearDropMarks(); return; }
+    const ids = orderOf(row.dataset.tier).filter(function (x) { return x !== id; });
     const r = row.getBoundingClientRect();
     const at = ids.indexOf(row.dataset.row) + (e.clientY < r.top + r.height / 2 ? 0 : 1);
     ids.splice(at, 0, id);
-    state.order[row.dataset.tier] = ids;
-    save(); render();
+    setOrder(row.dataset.tier, ids);
   });
   document.addEventListener("dragend", function () { dragId = null; clearDropMarks(); });
+
+  document.addEventListener("toggle", function (e) {
+    const d = e.target;
+    if (!d.matches || !d.matches("details[data-key]")) return;
+    // Browsers also fire this when a re-render draws the section, so only
+    // save a real change from what's stored (or from the default).
+    const closed = !d.open;
+    const was = state.collapsed[d.dataset.key];
+    const current = was !== undefined ? was : d.dataset.default === "closed";
+    if (current === closed) return;
+    state.collapsed[d.dataset.key] = closed;
+    save();
+  }, true);
 
   document.addEventListener("keydown", function (e) { if (e.key === "Escape" && drawerId) closeDrawer(); });
 
   render();
+  initCloud();
 })();
