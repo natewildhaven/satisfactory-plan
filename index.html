@@ -23,12 +23,17 @@
       <button data-view="list">List</button>
       <button data-view="flow">Flowchart</button>
       <button data-view="mind">Mind map</button>
+      <button data-view="logistics">Logistics</button>
+      <button data-view="alts">Alternates</button>
       <button data-view="rules">Rules</button>
-      <button data-view="settings" aria-label="Settings">⚙ Settings</button>
+      <button data-view="stats">Stats</button>
+      <button data-view="settings" aria-label="Settings">⚙</button>
     </nav>
   </header>
 
   <main id="view"></main>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
   <div id="drawer" class="drawer" hidden>
     <div class="drawer-backdrop" data-close></div>

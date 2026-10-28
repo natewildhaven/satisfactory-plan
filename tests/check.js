@@ -8,7 +8,7 @@ const root = path.join(__dirname, "..");
 require(path.join(root, "js/recipes.js"));
 require(path.join(root, "js/solver.js"));
 require(path.join(root, "js/missions.js"));
-const { GAME, Solver, PHASES, APPROVED_ALTS } = window;
+const { GAME, Solver, PHASES, ALTS, FOCUS } = window;
 
 let checks = 0;
 function ok(cond, msg) { assert.ok(cond, msg); checks++; }
@@ -16,24 +16,51 @@ function near(a, b, msg) { ok(Math.abs(a - b) < 1e-6, msg + ` (got ${a}, want ${
 
 // Mission data
 const ids = new Set();
+const kinds = new Set(["milestone"].concat(FOCUS.map((f) => f.id)));
+const allMissions = PHASES.flatMap((p) => p.missions);
+for (const m of allMissions) {
+  ok(!ids.has(m.id), `unique id ${m.id}`);
+  ids.add(m.id);
+}
 for (const p of PHASES) {
-  ok(p.missions.length > 0, `${p.id} has missions`);
-  for (const m of [...p.missions, ...(p.side || [])]) {
-    ok(!ids.has(m.id), `unique id ${m.id}`);
-    ids.add(m.id);
+  ok(p.missions.some((m) => !m.optional), `${p.id} has required missions`);
+  for (const m of p.missions) {
+    ok(kinds.has(m.kind), `${m.id}: known kind ${m.kind}`);
+    ok(m.time > 0, `${m.id}: has a time estimate`);
     ok(m.steps.length > 0, `${m.id} has steps`);
+    for (const s of m.steps) {
+      if (typeof s === "string") continue;
+      ok(typeof s.text === "string" && (s.alt || s.notAlt), `${m.id}: conditional step is well formed`);
+      ok(GAME.recipes[s.alt || s.notAlt], `${m.id}: conditional step names a real recipe`);
+    }
+    for (const r of m.requires || []) ok(ids.has(r), `${m.id}: requires ${r} exists`);
+    for (const a of m.suggestAlts || []) ok(GAME.recipes[a], `${m.id}: suggested alt ${a} exists`);
     if (!m.calc) continue;
-    for (const t of Object.keys(m.calc.targets)) ok(GAME.defaults[t], `${m.id}: recipe for ${t}`);
+    for (const t of Object.keys(m.calc.targets)) ok(GAME.defaults[t] || (m.calc.forceAlts || []).length, `${m.id}: recipe for ${t}`);
     for (const s of m.calc.supplied || []) ok(GAME.defaults[s] || GAME.raw.includes(s), `${m.id}: supplied item ${s} exists`);
-    for (const alts of [[], APPROVED_ALTS.map((a) => a.name)]) {
+    for (const a of (m.calc.useAlts || []).concat(m.calc.forceAlts || [])) ok(GAME.recipes[a], `${m.id}: alt ${a} exists`);
+    const sets = [m.calc.forceAlts || [], (m.calc.useAlts || []).concat(m.calc.forceAlts || [])];
+    for (const alts of sets) {
       const r = Solver.solve(m.calc.targets, alts, m.calc.supplied);
+      ok(r.steps.length > 0, `${m.id}: solver builds something`);
       for (const s of r.steps) {
         ok(Number.isFinite(s.clock) && s.clock > 0 && s.clock <= 100 + 1e-9, `${m.id}: ${s.recipe} clock in range`);
       }
     }
   }
 }
-for (const a of APPROVED_ALTS) ok(GAME.recipes[a.name], `alternate ${a.name} exists`);
+// No dependency cycles.
+const byId = Object.fromEntries(allMissions.map((m) => [m.id, m]));
+function reaches(from, target, seen = new Set()) {
+  for (const r of byId[from].requires || []) {
+    if (r === target) return true;
+    if (!seen.has(r)) { seen.add(r); if (reaches(r, target, seen)) return true; }
+  }
+  return false;
+}
+for (const m of allMissions) ok(!reaches(m.id, m.id), `${m.id}: no dependency cycle`);
+for (const a of ALTS) ok(GAME.recipes[a.name], `alternate ${a.name} exists`);
+ok(Object.keys(GAME.stack).length > 50, "stack sizes present");
 
 // Known answers
 function step(r, recipe) { return r.steps.find((s) => s.recipe === recipe); }

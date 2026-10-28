@@ -2,11 +2,13 @@
 
 A personal, one-step-at-a-time guide from landing in the Rocky Desert to Project Assembly (Satisfactory 1.x, Peaceful mode).
 
-- **Now** shows only the mission you're on. The next one appears once you tick this one off.
-- **List**, **Flowchart** and **Mind map** show the same progress three different ways. Click any mission to open it.
-- Every factory mission has a **machine box**: machine counts, exact clock %, raw ore/min, what to bring in, byproducts to overflow and total power. Switch between table and flow diagram.
-- **Rules** holds the fixed playstyle rules (overflow, Buffer Rule, refine at source, approved alternates, aluminum water loop).
-- **Settings**: tick the approved alternates you've unlocked and all the math updates. You can also copy/paste a progress code as a backup.
+- **Now** shows your current mission, the focus picker, the tier's goal board (editable target rates and power goal) and every other mission in the tier. Drag or use ▲▼ to reorder; missions never move ahead of what they depend on.
+- **List**, **Flowchart** and **Mind map** show the same progress three ways. Click any mission to open it.
+- Every factory mission has a **machine box**: a floor-by-floor plan, a table and a flow diagram, with exact clocks, raw ore/min, what to bring in, byproducts and power.
+- **Logistics**: a route calculator (vehicles, loop time → how many vehicles and how big the buffers), a "what feeds what" map of your built modules, and your own route list.
+- **Alternates**: a ranked pick-list for hard drives. Tick what you own: unbuilt modules switch their math, built ones get an optional upgrade mission.
+- **Stats**: power, modules, play time and how much of each part of the game (MAM, exploration, vehicles…) you've done.
+- **Rules** holds the playstyle rules. **Settings** has the progress code backup.
 
 Progress is saved in your browser (localStorage).
 
