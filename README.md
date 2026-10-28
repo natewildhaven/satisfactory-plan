@@ -6,7 +6,7 @@ A personal, one-step-at-a-time guide from landing in the Rocky Desert to Project
 - **List**, **Flowchart** and **Mind map** show the same progress three different ways. Click any mission to open it.
 - Every factory mission has a **machine box**: machine counts, exact clock %, raw ore/min, what to bring in, byproducts to overflow and total power. Switch between table and flow diagram.
 - **Rules** holds the fixed playstyle rules (overflow, Buffer Rule, refine at source, approved alternates, aluminum water loop).
-- **Settings**: tick the approved alternates you've unlocked and all the math updates. You can also export/import a progress backup.
+- **Settings**: tick the approved alternates you've unlocked and all the math updates. You can also copy/paste a progress code as a backup.
 
 Progress is saved in your browser (localStorage).
 
@@ -17,7 +17,7 @@ No install or build needed. Either:
 - **Open `index.html`** in a browser (double-click it after downloading the repo), or
 - **GitHub Pages**: repo *Settings → Pages → Deploy from a branch*, pick the branch and `/ (root)`. Then bookmark the URL.
 
-Progress is saved per browser and per address, so keep using the same one. Use *Export* to move it.
+Progress is saved per browser and per address, so keep using the same one. To move it, use the progress code in Settings.
 
 ## Files
 

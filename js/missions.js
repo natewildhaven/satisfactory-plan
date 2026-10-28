@@ -191,6 +191,7 @@ window.PHASES = [
         steps: [
           "Wait for 50 Smart Plating (25 minutes of the module above). Work on the next milestone while it runs.",
           "Load them into the Space Elevator and send it.",
+          "All Space Elevator amounts in this guide assume the default cost setting. If you changed *Space Elevator cost* in Advanced Game Settings, go by the numbers on the elevator screen.",
         ],
       },
       {
@@ -692,24 +693,24 @@ window.PHASES = [
       {
         id: "p8-ads",
         title: "Build Module: Assembly Director System",
-        goal: "0.5 ADS/min",
+        goal: "0.5 ADS/min (Phase 4 needs 500, ~17 h of runtime)",
         steps: [
           "Needs **1 ACU/min + 0.5 Supercomputer/min**: copy your ACU module once (2 × 0.5) and your Supercomputer module once, so the originals keep feeding everything else.",
-          "Read the exact Phase 4 counts off the Space Elevator screen and write them on a sign next to this module.",
+          "This is the slowest Phase 4 part, so build it first and let it run while you build the other three modules.",
         ],
         calc: { targets: { "Assembly Director System": 0.5 }, supplied: ["Adaptive Control Unit", "Supercomputer"] },
       },
       {
         id: "p8-mfg",
         title: "Build Module: Magnetic Field Generator",
-        goal: "1 MFG/min",
+        goal: "1 MFG/min (Phase 4 needs 500, ~8 h)",
         steps: ["Uses Versatile Framework from your VF modules and Electromagnetic Control Rods."],
         calc: { targets: { "Magnetic Field Generator": 1 }, supplied: ["Versatile Framework", "Stator", "AI Limiter"] },
       },
       {
         id: "p8-tpr",
         title: "Build Module: Thermal Propulsion Rocket",
-        goal: "0.5 TPR/min",
+        goal: "0.5 TPR/min (Phase 4 needs 250, ~8 h)",
         steps: [
           "Nitrogen Gas comes from a **Resource Well** (one Pressurizer + Extractors on its satellite nodes). Build this module at the well.",
           "Build one machine type at a time, in the order of the box: Heat Sink → Cooling System → Fused Frame → Turbo Motor → Rocket.",
@@ -719,7 +720,7 @@ window.PHASES = [
       {
         id: "p8-pasta",
         title: "Build Module: Nuclear Pasta",
-        goal: "0.5 Nuclear Pasta/min",
+        goal: "0.5 Nuclear Pasta/min (Phase 4 needs 100, ~3.5 h)",
         steps: [
           "Build this **at a copper field**. It needs 600 copper ore/min, so copper never leaves the site. If you own **Pure Copper Ingot**, tick it in Settings: that cuts the ore to 240/min.",
           "Particle Accelerators draw a lot of power that varies as they run. Make sure the nuclear plants are online first.",
@@ -730,7 +731,7 @@ window.PHASES = [
         id: "p8-elev4",
         title: "Ship Space Elevator Phase 4",
         goal: "Tier 9 unlocked",
-        steps: ["Fill the elevator with the ADS, Magnetic Field Generators, Nuclear Pasta and Thermal Propulsion Rockets it asks for, then send it."],
+        steps: ["Collect **500 Assembly Director System, 500 Magnetic Field Generator, 250 Thermal Propulsion Rocket, 100 Nuclear Pasta**, then send it."],
       },
     ],
     side: [

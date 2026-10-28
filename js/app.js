@@ -3,15 +3,18 @@
   const STORE_KEY = "sfguide.v1";
 
   // ---------- state ----------
-  const defaults = { steps: {}, alts: [], spoilers: false, view: "now" };
+  // A new object every time, so saved ticks never leak into the starting state.
+  function fresh(over) {
+    return Object.assign({ steps: {}, alts: [], spoilers: false, view: "now" }, over || {});
+  }
   let state = load();
 
   function load() {
     try {
       const raw = localStorage.getItem(STORE_KEY);
-      if (raw) return Object.assign({}, defaults, JSON.parse(raw));
+      if (raw) return fresh(JSON.parse(raw));
     } catch (e) { /* private mode or blocked storage: start fresh */ }
-    return Object.assign({}, defaults);
+    return fresh();
   }
   function save() {
     try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); } catch (e) { /* ignore */ }
@@ -489,11 +492,19 @@
     });
     h += "</div>";
     h += '<div class="card"><h2>Reveal</h2><label class="toggle"><input type="checkbox" id="spoilers"' + (state.spoilers ? " checked" : "") + '><span><strong>Show everything</strong><br><span class="muted">Turns off one-at-a-time reveal. Useful to catch up if you\'re already further in the game. Tick what you\'ve done, then switch it back off.</span></span></label></div>';
-    h += '<div class="card"><h2>Save & backup</h2><p class="muted">Progress saves automatically in this browser. Export a backup now and then, or to move to another PC.</p>';
-    h += '<div class="row"><button class="btn" id="export">⬇ Export progress</button><label class="btn">⬆ Import progress<input type="file" id="import" accept="application/json,.json" hidden></label><button class="btn" id="reset">🗑 Reset everything</button></div></div>';
+    h += '<div class="card"><h2>Save & backup</h2><p class="muted">Progress saves automatically in this browser. To back it up or move it to another browser, copy your progress code and paste it in there.</p>';
+    h += '<label class="calc-section" for="backup">Progress code</label><textarea id="backup" class="backup" rows="3" spellcheck="false">' + esc(JSON.stringify(state)) + "</textarea>";
+    h += '<div class="row"><button class="btn" id="copy">Copy code</button><button class="btn" id="load">Load pasted code</button>';
+    h += resetArmed
+      ? '<button class="btn danger" id="reset-yes">Yes, untick everything</button><button class="btn" id="reset-no">Keep my progress</button>'
+      : '<button class="btn" id="reset">Reset everything</button>';
+    h += '</div><div class="muted" id="backup-msg" role="status">' + esc(backupMsg) + "</div></div>";
     h += '<div class="card"><h2>About the numbers</h2><p class="muted">Recipes come from Satisfactory 1.x game data (via SatisfactoryTools). Clock speeds assume 100% = the recipe\'s base rate with no power shards. If something in-game disagrees, the game wins.</p></div>';
     return h;
   }
+
+  let resetArmed = false;
+  let backupMsg = "";
 
   // ---------- render ----------
   const viewEl = document.getElementById("view");
@@ -549,21 +560,10 @@
       if (t.checked) state.alts.push(name);
       save(); render();
     } else if (t.id === "spoilers") { state.spoilers = t.checked; save(); render(); }
-    else if (t.id === "import" && t.files[0]) {
-      t.files[0].text().then(function (txt) {
-        try {
-          const data = JSON.parse(txt);
-          if (!data || typeof data.steps !== "object") throw new Error("not a guide backup");
-          state = Object.assign({}, defaults, data);
-          save(); render();
-          alert("Progress imported.");
-        } catch (err) { alert("That file doesn't look like a guide backup."); }
-      });
-    }
   });
 
   document.addEventListener("click", function (e) {
-    const t = e.target.closest("[data-view],[data-open],[data-done],[data-undo],[data-calcmode],[data-close],#export,#reset");
+    const t = e.target.closest("[data-view],[data-open],[data-done],[data-undo],[data-calcmode],[data-close],#copy,#load,#reset,#reset-yes,#reset-no");
     if (!t) return;
     if (t.dataset.view) { state.view = t.dataset.view; save(); render(); window.scrollTo(0, 0); }
     else if (t.dataset.open) openDrawer(t.dataset.open);
@@ -571,18 +571,30 @@
     else if (t.dataset.undo) { setMission(t.dataset.undo, false); render(); }
     else if (t.dataset.calcmode) { calcMode[t.dataset.calcmode] = t.dataset.mode; render(); }
     else if (t.hasAttribute("data-close")) closeDrawer();
-    else if (t.id === "export") {
-      const blob = new Blob([JSON.stringify(state, null, 2)], { type: "application/json" });
-      const a = document.createElement("a");
-      a.href = URL.createObjectURL(blob);
-      a.download = "satisfactory-guide-progress-" + new Date().toISOString().slice(0, 10) + ".json";
-      a.click();
-      URL.revokeObjectURL(a.href);
-    } else if (t.id === "reset") {
-      if (confirm("Untick every mission and clear your settings? Export a backup first if you might want it back.")) {
-        state = Object.assign({}, defaults);
-        save(); render();
+    else if (t.id === "copy") {
+      const box = document.getElementById("backup");
+      box.value = JSON.stringify(state);
+      const done = function () { backupMsg = "Copied. Paste it somewhere safe."; render(); };
+      const fallback = function () { box.select(); backupMsg = "Code selected. Press Ctrl+C to copy it."; document.getElementById("backup-msg").textContent = backupMsg; };
+      try { navigator.clipboard.writeText(box.value).then(done, fallback); } catch (err) { fallback(); }
+    } else if (t.id === "load") {
+      try {
+        const data = JSON.parse(document.getElementById("backup").value);
+        if (!data || typeof data.steps !== "object") throw new Error("not a progress code");
+        state = fresh(Object.assign({}, data, { view: "settings" }));
+        save();
+        backupMsg = "Progress loaded.";
+      } catch (err) {
+        backupMsg = "That isn't a progress code. Paste the whole code you copied, starting with {.";
       }
+      render();
+    } else if (t.id === "reset") { resetArmed = true; render(); }
+    else if (t.id === "reset-no") { resetArmed = false; render(); }
+    else if (t.id === "reset-yes") {
+      state = fresh({ view: "settings" });
+      resetArmed = false;
+      backupMsg = "Everything unticked.";
+      save(); render();
     }
   });
 
