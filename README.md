@@ -2,6 +2,11 @@
 
 A personal, one-step-at-a-time guide from landing in the Rocky Desert to Project Assembly (Satisfactory 1.x, Peaceful mode).
 
+It has two plans; switch at the top of Targets, Goals or Quests, or in Settings. Each keeps its own progress.
+
+- **🌱 Fresh start**: from landing to Project Assembly, tier by tier.
+- **🚂 Comeback**: for the old save at Tier 7–8 (91 GW of fuel power, lots of factories, no trains). Five stages: take stock, build a first railway, build a new hub that finishes Tier 8, then Space Elevator Phases 4 and 5. The old base keeps making what it makes and ships its spare parts to the hub by train, so the hub only mines copper, caterium and nitrogen. Targets use the alternates in the save (Settings ticks all 18 at once) and show what comes in by train. "The plan at a glance" on the Targets tab says which factory does what.
+
 - **Targets** (the main guide): per tier, what to produce per minute at minimum / ideal / stretch, the power to build for each level (whole factory, 25% spare) and the raw resources it needs. Click a number to mark it reached, 🏭 for the machines.
 - **Goals** is a tier-by-tier checklist of what to achieve, not how: 🔴 mandatory, 🔵 encouraged and ⚪ optional goals with tags, plus counters for Mercer Spheres, Somersloops, hard drives, Power Shards and alternates that tick their goals automatically. Each tier has a production targets table (minimum / ideal / stretch per minute) with machine plans for any rate.
 - **Quests** shows your current quest, the focus picker, the tier's goal board (editable target rates and power goal) and every other mission in the tier. Drag or use ▲▼ to reorder; missions never move ahead of what they depend on.
@@ -30,6 +35,7 @@ Progress is saved per browser and per address, so keep using the same one. To mo
 | --- | --- |
 | `js/missions.js` | The guide content: phases, missions, side quests, rules |
 | `js/goals.js` | The Goals tab checklist and counters |
+| `js/comeback.js` | The Comeback plan: stages, goals, targets and the old base's parts list |
 | `js/solver.js` | Production math (machine counts, clocks, byproduct netting) |
 | `js/recipes.js` | Recipe data, generated. Don't edit by hand. |
 | `js/app.js` | The UI and views |

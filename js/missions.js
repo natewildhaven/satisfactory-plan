@@ -1835,6 +1835,7 @@ window.PHASES = [
 window.ALTS = [
   // Tier 1
   { name: "Alternate: Cast Screws", rank: 2, tier: 1, why: "Screws straight from Iron Ingots: 50/min from 12.5 ingots, no rod step.", later: "Alternate: Steel Screws" },
+  { name: "Alternate: Iron Wire", rank: 3, tier: 1, why: "Wire from Iron Ingots, so copper goes further. 22.5 Wire/min per Constructor (standard is 30)." },
   // Tier 2
   { name: "Alternate: Copper Rotor", rank: 2, tier: 2, why: "11.25 Rotors/min per Assembler (standard is 4) from Copper Sheet + Screws. Screw-hungry, so it shines with Steel Screws." },
   { name: "Alternate: Stitched Iron Plate", rank: 2, tier: 2, why: "Reinforced Iron Plate from Iron Plate + Wire, no screws at all." },
@@ -1847,6 +1848,7 @@ window.ALTS = [
   { name: "Alternate: Iron Alloy Ingot", rank: 2, tier: 3, why: "Foundry: 75 Iron Ingots/min from 40 iron ore + 10 copper ore.", later: "Alternate: Pure Iron Ingot" },
   { name: "Alternate: Copper Alloy Ingot", rank: 2, tier: 3, why: "Foundry: 100 Copper Ingots/min from 50 copper ore + 50 iron ore.", later: "Alternate: Pure Copper Ingot" },
   { name: "Alternate: Steel Rotor", rank: 2, tier: 3, why: "Rotors from Steel Pipe + Wire, no screws." },
+  { name: "Alternate: Iron Pipe", rank: 3, tier: 3, why: "Steel Pipe from plain Iron Ingots, no steel. Handy where there's no coal." },
   { name: "Alternate: Steel Cast Plate", rank: 3, tier: 3, why: "Foundry: 45 Iron Plates/min from 15 Iron Ingots + 15 Steel Ingots.", later: "Alternate: Coated Iron Plate" },
   // Tier 4
   { name: "Alternate: Encased Industrial Pipe", rank: 2, tier: 4, why: "Encased Industrial Beam from Steel Pipe + Concrete instead of beams." },
@@ -1884,6 +1886,7 @@ window.ALTS = [
   { name: "Alternate: Turbo Electric Motor", rank: 2, tier: 8, why: "Turbo Motors without Cooling Systems." },
   { name: "Alternate: Uranium Fuel Unit", rank: 2, tier: 8, why: "50% more fuel rods from the same uranium cells." },
   { name: "Alternate: Cooling Device", rank: 3, tier: 8, why: "Cooling Systems with less nitrogen." },
+  { name: "Alternate: Nitro Rocket Fuel", rank: 3, tier: 8, why: "Rocket Fuel from Fuel, Nitrogen, Sulfur and Coal in one Blender: 150/min, no Turbofuel step." },
   // Tier 9
   { name: "Alternate: Dark Matter Trap", rank: 2, tier: 9, why: "60 Dark Matter Crystals/min from Time Crystals + residue (standard makes 30 and needs Diamonds)." },
 ];

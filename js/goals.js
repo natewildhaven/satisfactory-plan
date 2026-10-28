@@ -34,6 +34,7 @@ window.GOAL_LEVELS = [
 ];
 
 (function () {
+  // Shared with other plans (js/comeback.js) through window.GoalKit.
   function g(level, tag, text, extra) {
     return Object.assign({ level: level, tag: tag, text: text }, extra || {});
   }
@@ -235,14 +236,19 @@ window.GOAL_LEVELS = [
     ],
   };
 
-  // Stable ids: tier + position within its level and tag never shift when a goal is added elsewhere.
-  window.GOALS = {};
-  Object.keys(tiers).forEach(function (tid) {
-    const seen = {};
-    window.GOALS[tid] = tiers[tid].map(function (goal) {
-      const base = tid + ":" + goal.text.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 48);
-      seen[base] = (seen[base] || 0) + 1;
-      return Object.assign({ id: seen[base] > 1 ? base + "-" + seen[base] : base }, goal);
+  // Stable ids: tier + goal text, so ids never shift when a goal is added elsewhere.
+  function build(tierGoals) {
+    const out = {};
+    Object.keys(tierGoals).forEach(function (tid) {
+      const seen = {};
+      out[tid] = tierGoals[tid].map(function (goal) {
+        const base = tid + ":" + goal.text.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 48);
+        seen[base] = (seen[base] || 0) + 1;
+        return Object.assign({ id: seen[base] > 1 ? base + "-" + seen[base] : base }, goal);
+      });
     });
-  });
+    return out;
+  }
+  window.GOALS = build(tiers);
+  window.GoalKit = { g: g, make: make, count: count, build: build, M: M, E: E, O: O };
 })();

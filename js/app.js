@@ -1,6 +1,13 @@
 (function () {
-  const PHASES = window.PHASES;
   const FOCUS = window.FOCUS;
+  // Plans: the fresh-start guide, and the Comeback plan for an old save (js/comeback.js).
+  // Both keep their progress in the same state; mission, goal and tier ids never overlap.
+  const PLANS = [{
+    id: "fresh", label: "Fresh start", icon: "🌱", hint: "From landing to Project Assembly, tier by tier.",
+    phases: window.PHASES, goals: window.GOALS, rates: window.GOAL_RATES, cumulative: true,
+  }].concat(window.COMEBACK ? [window.COMEBACK] : []);
+  let PLAN = PLANS[0];
+  let PHASES = PLAN.phases;
   const STORE_KEY = "sfguide.v1";
   const KIND_ICON = { milestone: "🏁" };
   FOCUS.forEach(function (f) { KIND_ICON[f.id] = f.icon; });
@@ -15,6 +22,7 @@
       listLayout: "stacked", listScope: "all", hideDone: false, tagFilter: [],
       queue: [], collapsed: {},
       goals: {}, counters: {}, rateLevels: {}, targetScope: "all", goalLayout: "level", goalScope: "all", goalHideDone: false, goalTags: [],
+      plan: "fresh",
     }, over || {});
   }
   let state = load();
@@ -45,6 +53,7 @@
   function adopt(remote) {
     const keepView = state.view;
     state = fresh(Object.assign({}, remote, { view: keepView }));
+    usePlan(state.plan);
     saveLocal();
     render();
   }
@@ -110,11 +119,22 @@
   }
 
   // ---------- model ----------
-  const index = {}; // mission id -> { m, phase, pi, n }
-  PHASES.forEach(function (p, pi) {
-    p.missions.forEach(function (m, n) { index[m.id] = { m: m, phase: p, pi: pi, n: n }; });
-  });
+  let index = {}; // mission id -> { m, phase, pi, n }
+  function usePlan(id) {
+    PLAN = PLANS.find(function (p) { return p.id === id; }) || PLANS[0];
+    PHASES = PLAN.phases;
+    index = {};
+    PHASES.forEach(function (p, pi) {
+      p.missions.forEach(function (m, n) { index[m.id] = { m: m, phase: p, pi: pi, n: n }; });
+    });
+  }
+  usePlan(state.plan);
   function info(id) { return index[id] || upgradeIndex[id] || altQuestIndex[id]; }
+  // The game tier a tier/stage sits in, and how to name it in lists.
+  function gameTier(pi) { return PHASES[pi].gameTier !== undefined ? PHASES[pi].gameTier : pi; }
+  function tierTag(pi) { return PHASES[pi].short || "Tier " + pi; }
+  // Alternates the plan's targets may use: the plan's list, filtered to what you own.
+  function planAlts() { return (PLAN.useAlts || []).filter(owns); }
 
   function visibleSteps(m) {
     return m.steps.map(function (s, i) { return { s: s, i: i }; }).filter(function (x) {
@@ -249,8 +269,8 @@
     altQuestIndex = {};
     const pi = currentTier();
     const p = PHASES[pi];
-    const tierNum = pi; // phase index matches the game tier number
-    return window.ALTS.filter(function (a) {
+    const tierNum = gameTier(pi);
+    return huntList(pi, function (a) {
       if (a.tier > tierNum) return false;
       return a.rank === 1 ? a.tier >= tierNum - 3 : a.rank === 2 && a.tier >= tierNum - 2;
     }).map(function (a) {
@@ -265,6 +285,12 @@
     });
   }
 
+  // A tier's alternates to look for: its own hunt list if it has one, else the pick-list filtered.
+  function huntList(pi, keep) {
+    const hunt = PHASES[pi].hunt;
+    if (hunt) return hunt.map(function (n) { return window.ALTS.find(function (a) { return a.name === n; }); }).filter(Boolean);
+    return window.ALTS.filter(keep);
+  }
   function requiresMet(m) {
     return (m.requires || []).every(function (r) { return index[r] && isDone(index[r].m); });
   }
@@ -356,6 +382,7 @@
       p.missions.forEach(function (m) {
         if (!isDone(m)) return;
         if (m.produces && !retired[m.id]) built += m.produces;
+        if (m.uses) used += m.uses; // what an existing factory already draws
         if (m.calc) used += solveFor(m).power;
       });
     });
@@ -447,7 +474,7 @@
     h += '<div class="calc-body">';
     h += '<div class="calc-section">Output (edit on the goal board)</div><div class="chips">' + r.targets.map(function (t) {
       return '<span class="chip">' + esc(t[0]) + " " + rate(t[0], t[1]) + "</span>";
-    }).join("") + alts.map(function (a) { return '<span class="chip alt">💾 ' + esc(altName(a)) + "</span>"; }).join("") + "</div>";
+    }).join("") + alts.filter(function (a) { return r.steps.some(function (x) { return x.recipe === a; }); }).map(function (a) { return '<span class="chip alt">💾 ' + esc(altName(a)) + "</span>"; }).join("") + "</div>";
     if (m.upgradeOf) h += upgradeDiff(m);
     if (mode === "flow") h += '<div class="diagram-wrap">' + productionSvg(r) + "</div>";
     else if (mode === "table") h += '<div class="table-wrap">' + calcTable(r) + "</div>";
@@ -635,6 +662,12 @@
   }
 
   // ---------- shared pieces ----------
+  function planSwitch() {
+    if (PLANS.length < 2) return "";
+    return '<div class="toolbar plan-bar"><div class="tool-group"><span class="focus-label">Plan</span><span class="seg">' + PLANS.map(function (p) {
+      return '<button data-plan="' + p.id + '" class="' + (PLAN.id === p.id ? "active" : "") + '" title="' + esc(p.hint) + '">' + p.icon + " " + esc(p.label) + "</button>";
+    }).join("") + '</span></div><span class="muted small">' + esc(PLAN.hint) + "</span></div>";
+  }
   function focusPicker() {
     let h = '<div class="focus"><span class="focus-label">Focus</span>';
     FOCUS.forEach(function (f) {
@@ -682,7 +715,7 @@
     if (drag) h += '<span class="grip" aria-hidden="true">⋮⋮</span>';
     h += '<input type="checkbox" title="Tick the whole quest" data-mission="' + m.id + '"' + (done ? " checked" : "") + ">";
     h += '<div class="name" data-open="' + m.id + '"><span class="kind-ic" title="' + esc(kindLabel(m.kind)) + '">' + KIND_ICON[m.kind] + "</span> " + esc(m.title) +
-      '<div class="meta">' + (opts && opts.tierLabel ? "Tier " + inf.pi + " · " : "") + esc(m.goal || "") + partial + lock + (state.skipped[m.id] ? " · skipped" : "") + "</div></div>";
+      '<div class="meta">' + (opts && opts.tierLabel ? tierTag(inf.pi) + " · " : "") + esc(m.goal || "") + partial + lock + (state.skipped[m.id] ? " · skipped" : "") + "</div></div>";
     h += '<span class="row-tags">';
     if (m.time) h += '<span class="tag">~' + hours(m.time) + "</span>";
     if (compact) h += m.optional ? '<span class="tag side-tag">Side</span>' : '<span class="tag main-tag">Main</span>';
@@ -733,7 +766,7 @@
     const left = req.filter(function (m) { return !isDone(m); }).reduce(function (a, m) { return a + (m.time || 0); }, 0);
     let h = '<div class="card"><div class="eyebrow">' + esc(p.tier) + "</div><h2>" + esc(p.title) + '</h2><div class="muted">' + md(p.blurb) + "</div>";
     h += '<div class="progress"><div style="width:' + pct(done, req.length) + '%"></div></div>';
-    h += '<div class="muted small">' + done + " of " + req.length + " main quests · about " + hours(left) + " of main-quest play left in this tier</div></div>";
+    h += '<div class="muted small">' + done + " of " + req.length + " main quests · about " + hours(left) + " of main-quest play left in this " + (p.short ? "stage" : "tier") + "</div></div>";
     return h;
   }
 
@@ -744,7 +777,7 @@
     if (!m && tierComplete(PHASES.length - 1)) {
       return '<div class="card celebrate"><div class="big">🚀</div><h1>Project Assembly complete!</h1><p class="muted">Every main quest is ticked. Go chase side quests, or just enjoy the factory.</p></div>';
     }
-    let h = tierHeader(pi);
+    let h = planSwitch() + tierHeader(pi);
     h += focusPicker();
     h += queuePanel();
     if (m) h += missionBody(m.id, { current: true });
@@ -829,12 +862,12 @@
     }
     if (layout === "table") {
       if (!all.length) return h + emptyNote();
-      h += '<div class="table-wrap"><table class="quest-table"><thead><tr><th></th><th>Quest</th><th>Tier</th><th>Type</th><th>Tag</th><th>Time</th><th>Status</th></tr></thead><tbody>';
+      h += '<div class="table-wrap"><table class="quest-table"><thead><tr><th></th><th>Quest</th><th>' + (PLAN.phases[0].short ? "Stage" : "Tier") + '</th><th>Type</th><th>Tag</th><th>Time</th><th>Status</th></tr></thead><tbody>';
       all.forEach(function (m) {
         const done = isDone(m);
         const status = done ? "✓ Done" : requiresMet(m) ? (doneCount(m) ? "In progress" : "Ready") : "🔒 Waiting";
         h += '<tr class="' + (done ? "done" : "") + '"><td><input type="checkbox" data-mission="' + esc(m.id) + '"' + (done ? " checked" : "") + ' aria-label="Done"></td>';
-        h += '<td><a href="#" data-open="' + esc(m.id) + '">' + esc(m.title) + "</a></td><td class='num'>" + info(m.id).pi + "</td>";
+        h += '<td><a href="#" data-open="' + esc(m.id) + '">' + esc(m.title) + "</a></td><td class='num'>" + esc(tierTag(info(m.id).pi)) + "</td>";
         h += "<td>" + (m.optional ? '<span class="tag side-tag">Side</span>' : '<span class="tag main-tag">Main</span>') + "</td>";
         h += "<td>" + KIND_ICON[m.kind] + " " + esc(kindLabel(m.kind)) + "</td><td class='num'>" + (m.time ? "~" + hours(m.time) : "") + "</td><td>" + status + "</td></tr>";
       });
@@ -1102,6 +1135,7 @@
   // ---------- alternates ----------
   function renderAlts() {
     const pi = currentTier();
+    const gt = gameTier(pi);
     const wanted = {};
     PHASES.forEach(function (p, i) {
       if (i > pi + 1) return;
@@ -1113,17 +1147,18 @@
       h += '<div class="card"><h2>Hunting for now</h2><ul class="facts">' + keys.map(function (a) { return "<li><strong>" + esc(altName(a)) + "</strong>: helps " + wanted[a].map(esc).join(", ") + "</li>"; }).join("") + "</ul></div>";
     }
     h += '<p class="muted">A hard drive offers a choice? Take whichever is highest-ranked: ★★★ take it whenever offered, ★★ good, ★ nice to have. Hard drives only offer recipes for things you\'ve already unlocked, so later tiers\' picks show up later. Some early picks get replaced by a better one further on.</p>';
-    PHASES.forEach(function (p, pi) {
-      const list = altsForTier(pi);
+    // Grouped by game tier (the fresh-start tiers), whichever plan you're on.
+    window.PHASES.forEach(function (p, t) {
+      const list = altsForTier(t);
       if (!list.length) return;
       const title = '<span class="eyebrow">' + esc(p.tier) + '</span><span class="tier-name">' + esc(p.title) + "</span>";
-      h += section("alts:" + p.id, title, list.filter(function (a) { return owns(a.name); }).length + "/" + list.length + " owned", list.map(altRow).join(""), "phase", pi > currentTier() + 1);
+      h += section("alts:" + p.id, title, list.filter(function (a) { return owns(a.name); }).length + "/" + list.length + " owned", list.map(altRow).join(""), "phase", t > gt + 1);
     });
     return h;
   }
 
-  function altsForTier(pi) {
-    return window.ALTS.filter(function (a) { return a.tier === pi; }).sort(function (a, b) { return a.rank - b.rank; });
+  function altsForTier(t) {
+    return window.ALTS.filter(function (a) { return a.tier === t; }).sort(function (a, b) { return a.rank - b.rank; });
   }
   // One alternate with its rank, why it's good, and what it replaces or gets replaced by.
   function altRow(a) {
@@ -1192,6 +1227,17 @@
 
   function renderSettings() {
     let h = "<h1>Settings</h1>";
+    if (PLANS.length > 1) {
+      h += '<div class="card"><h2>Plan</h2><p class="muted">Both plans keep their own progress, so you can switch back and forth.</p>' + PLANS.map(function (p) {
+        return '<label class="toggle"><input type="radio" name="plan" data-plan="' + p.id + '"' + (PLAN.id === p.id ? " checked" : "") + "><span><strong>" + p.icon + " " + esc(p.label) + '</strong><br><span class="muted">' + esc(p.hint) + "</span></span></label>";
+      }).join("");
+      if (PLAN.ownedAlts) {
+        const missing = PLAN.ownedAlts.filter(function (a) { return !owns(a); });
+        h += '<p class="muted">Alternates already in your save: ' + PLAN.ownedAlts.map(function (a) { return esc(altName(a)); }).join(", ") + ".</p>";
+        h += missing.length ? '<button class="btn" data-ownalts>Tick the alternates in my save (' + missing.length + ")</button>" : '<p class="small">✓ All ' + PLAN.ownedAlts.length + " are ticked.</p>";
+      }
+      h += "</div>";
+    }
     h += '<div class="card"><h2>Reveal</h2><label class="toggle"><input type="checkbox" id="spoilers"' + (state.spoilers ? " checked" : "") + '><span><strong>Show every tier</strong><br><span class="muted">Useful to catch up if you\'re already further in the game. Tick what you\'ve done, then switch it back off.</span></span></label></div>';
     h += '<div class="card"><h2>Order</h2><p class="muted">You\'ve set your own order in ' + Object.keys(state.order).length + ' tier(s). Clearing it goes back to the focus order.</p><button class="btn" data-resetorder>Clear my manual order</button></div>';
     h += '<div class="card"><h2>Save & sync</h2><p class="muted">' + (cloud
@@ -1219,7 +1265,7 @@
     if (goal.items) return goal.items.every(function (i) { return rateLevel(goalTierId(goal), i) >= 0; });
     return !!state.goals[goal.id];
   }
-  function goalsOf(pi) { return window.GOALS[PHASES[pi].id] || []; }
+  function goalsOf(pi) { return PLAN.goals[PHASES[pi].id] || []; }
   function goalTier() {
     for (let pi = 0; pi < PHASES.length; pi++) {
       if (goalsOf(pi).some(function (x) { return x.level === "mandatory" && !goalDone(x); })) return pi;
@@ -1238,11 +1284,11 @@
     window.GOAL_COUNTERS.forEach(function (c) {
       const v = counterValue(c.id);
       let next = null;
-      PHASES.forEach(function (p) { goalsOf(PHASES.indexOf(p)).forEach(function (x) { if (x.counter === c.id && x.target > v && (!next || x.target < next.target)) next = { target: x.target, tier: PHASES.indexOf(p) }; }); });
+      PHASES.forEach(function (p, pi) { goalsOf(pi).forEach(function (x) { if (x.counter === c.id && x.target > v && (!next || x.target < next.target)) next = { target: x.target, tier: pi }; }); });
       h += '<div class="counter"><div class="counter-label">' + c.icon + " " + esc(c.label) + "</div>";
       if (c.auto) h += '<div class="counter-row"><span class="counter-value">' + v + '</span><button class="btn small" data-view="alts">Tick on Alternates tab</button></div>';
       else h += '<div class="counter-row"><button class="icon-btn big" data-cstep="' + c.id + '" data-d="-1" aria-label="One less">−</button><input type="number" min="0" id="counter-' + c.id + '" data-counter="' + c.id + '" value="' + v + '"><button class="icon-btn big" data-cstep="' + c.id + '" data-d="1" aria-label="One more">+</button></div>';
-      h += '<div class="muted small">' + (next ? "Next goal: " + next.target + " (Tier " + next.tier + ")" : "Every goal reached") + "</div></div>";
+      h += '<div class="muted small">' + (next ? "Next goal: " + next.target + " (" + esc(tierTag(next.tier)) + ")" : "Every goal reached") + "</div></div>";
     });
     return h + "</div>";
   }
@@ -1253,7 +1299,7 @@
     let h = '<div class="goal-item lvl-' + goal.level + (done ? " done" : "") + '">';
     if (goal.items) {
       const tid = goalTierId(goal);
-      const rows = (window.GOAL_RATES[tid] || []).filter(function (r) { return goal.items.indexOf(r[0]) !== -1; });
+      const rows = (PLAN.rates[tid] || []).filter(function (r) { return goal.items.indexOf(r[0]) !== -1; });
       h += '<span class="goal-check auto" title="Ticks itself when every item reaches its minimum in the production table">' + (done ? "✓" : "") + "</span>";
       h += '<span class="goal-text">' + esc(goal.text) + '<span class="goal-rates">' + rows.map(function (r) {
         const lv = rateLevel(tid, r[0]);
@@ -1272,7 +1318,7 @@
   }
 
   function renderGoals() {
-    let h = '<h1>Goals</h1><p class="muted">What to achieve in each tier, not how. Do them in any order. 🔴 Mandatory is the core path, 🔵 Encouraged is good practice for how you play, ⚪ Optional is fun and extras. Counter goals tick themselves.</p>';
+    let h = planSwitch() + '<h1>Goals</h1><p class="muted">What to achieve in each tier, not how. Do them in any order. 🔴 Mandatory is the core path, 🔵 Encouraged is good practice for how you play, ⚪ Optional is fun and extras. Counter goals tick themselves.</p>';
     h += countersPanel();
     h += '<div class="toolbar">';
     h += '<div class="tool-group"><span class="focus-label">Layout</span><span class="seg">' +
@@ -1306,7 +1352,7 @@
         const body = ls.map(goalRow).join("") || '<div class="muted small empty">Nothing here with these filters.</div>';
         return section("goals:" + p.id + ":" + l.id, l.icon + " " + l.label + ' <span class="muted small">' + esc(l.hint) + "</span>", doneOf2(ls), body, "goal-sect");
       });
-      const tierAlts = altsForTier(pi);
+      const tierAlts = PHASES[pi].hunt ? huntList(pi) : altsForTier(gameTier(pi));
       const altSect = tierAlts.length ? section("goals:" + p.id + ":alts", "💾 Alternates to look for", tierAlts.filter(function (x) { return owns(x.name); }).length + "/" + tierAlts.length, tierAlts.map(altRow).join(""), "alts-sect", true) : "";
       const body = '<div class="progress"><div style="width:' + pct(mand.filter(goalDone).length, mand.length) + '%"></div></div>' + ratesTable(pi) + altSect +
         (state.goalLayout === "columns" ? '<div class="three-col">' + parts.map(function (x) { return '<div class="col">' + x + "</div>"; }).join("") + "</div>" : parts.join(""));
@@ -1323,73 +1369,94 @@
   const SPARE = 1.25; // build 25% more power than the lines need
   const POWER_ROW = "⚡ Power";
   const rateSolveCache = {};
-  function solveTargets(t) {
-    const k = JSON.stringify(t);
-    if (!rateSolveCache[k]) rateSolveCache[k] = window.Solver.solve(t, []);
+  // Solved with the plan's alternates you own; supplied parts are brought in, not built.
+  function solveTargets(t, supplied) {
+    const alts = planAlts();
+    const k = JSON.stringify([t, alts, supplied || []]);
+    if (!rateSolveCache[k]) rateSolveCache[k] = window.Solver.solve(t, alts, supplied);
     return rateSolveCache[k];
   }
-  function solveRate(item, rate) { const t = {}; t[item] = rate; return solveTargets(t); }
   function tierTargets(pi, lvl) {
     const t = {};
-    (window.GOAL_RATES[PHASES[pi].id] || []).forEach(function (r) { t[r[0]] = r[1 + lvl]; });
+    (PLAN.rates[PHASES[pi].id] || []).forEach(function (r) { t[r[0]] = r[1 + lvl]; });
     return t;
   }
+  function tierSolve(pi, lvl) { return solveTargets(tierTargets(pi, lvl), PHASES[pi].supplied); }
   // The whole factory at one level: every tier so far, with each material at its latest tier's
   // target (Tier 1's scaled-up iron replaces Tier 0's, it doesn't add to it). Solved together,
-  // so shared parts are only counted once.
+  // so shared parts are only counted once. Plans that aren't cumulative count one stage only.
   function factoryTargets(pi, lvl) {
     const t = {};
     for (let i = 0; i <= pi; i++) Object.assign(t, tierTargets(i, lvl));
     return t;
   }
-  function tierLinesPower(pi, lvl) { return solveTargets(tierTargets(pi, lvl)).power; }
-  function factoryPower(pi, lvl) { return solveTargets(factoryTargets(pi, lvl)).power; }
+  function tierLinesPower(pi, lvl) { return tierSolve(pi, lvl).power; }
+  function factoryPower(pi, lvl) { return PLAN.cumulative ? solveTargets(factoryTargets(pi, lvl)).power : tierLinesPower(pi, lvl); }
   function buildTarget(mw) { return Math.max(30, Math.ceil((mw * SPARE) / 10) * 10); }
   function tierRaw(pi, lvl) {
-    return solveTargets(tierTargets(pi, lvl)).raw.slice().sort(function (a, b) { return b[1] - a[1]; });
+    return tierSolve(pi, lvl).raw.slice().sort(function (a, b) { return b[1] - a[1]; });
   }
   const COAL_TIER = 3; // before Coal Power, the grid is Biomass Burners (30 MW each)
 
   // The production targets table: click a number to mark that level reached; 🏭 opens the machines for it.
   function ratesBody(pi) {
-    const tid = PHASES[pi].id;
-    const rows = window.GOAL_RATES[tid] || [];
+    const p = PHASES[pi];
+    const tid = p.id;
+    const rows = PLAN.rates[tid] || [];
     if (!rows.length) return "";
     const names = ["Minimum", "Ideal", "Stretch"];
-    let body = '<div class="table-wrap"><table class="rates-table"><thead><tr><th>Make (per minute)</th>' + names.map(function (n) { return "<th>" + n + "</th>"; }).join("") + "<th></th></tr></thead><tbody>";
+    const needLabel = p.needLabel || "Space Elevator needs";
+    let body = '<div class="table-wrap"><table class="rates-table"><thead><tr><th>' + (p.delivery ? "Arrive at the hub (per minute)" : "Make (per minute)") + "</th>" + names.map(function (n) { return "<th>" + n + "</th>"; }).join("") + "<th></th></tr></thead><tbody>";
     rows.forEach(function (r) {
       const lv = rateLevel(tid, r[0]);
       body += "<tr><td><strong>" + esc(r[0]) + "</strong></td>";
       for (let i = 0; i < 3; i++) {
         const rate = r[1 + i];
-        body += '<td><span class="rate-cell"><button class="rate-btn' + (lv >= i ? " hit" : "") + '" data-ratelevel="' + esc(tid + "|" + r[0]) + '" data-lv="' + LEVEL_ORDER[i] + '" title="Mark ' + names[i].toLowerCase() + ' reached">' + (lv >= i ? "✓ " : "") + fmt(rate) + '</button><button class="icon-btn" data-ratecalc="' + esc(r[0]) + '" data-rate="' + rate + '" aria-label="Machines for ' + fmt(rate) + "/min " + esc(r[0]) + '" title="Machines for this rate">🏭</button></span>';
+        body += '<td><span class="rate-cell"><button class="rate-btn' + (lv >= i ? " hit" : "") + '" data-ratelevel="' + esc(tid + "|" + r[0]) + '" data-lv="' + LEVEL_ORDER[i] + '" title="Mark ' + names[i].toLowerCase() + ' reached">' + (lv >= i ? "✓ " : "") + fmt(rate) + "</button>";
+        if (!p.delivery) body += '<button class="icon-btn" data-ratecalc="' + esc(r[0]) + '" data-rate="' + rate + '" data-tier="' + pi + '" aria-label="Machines for ' + fmt(rate) + "/min " + esc(r[0]) + '" title="Machines for this rate">🏭</button>';
+        body += "</span>";
         if (r[4]) body += '<div class="muted small">' + hours(r[4] / rate) + " for " + r[4] + "</div>";
         body += "</td>";
       }
-      body += '<td class="muted small">' + (r[4] ? "Space Elevator needs " + r[4] : "") + "</td></tr>";
+      body += '<td class="muted small">' + (r[4] ? esc(needLabel) + " " + r[4] : "") + "</td></tr>";
     });
+    if (p.delivery) {
+      body += '<tr class="raw-row"><td colspan="5" class="muted small">Your old base already makes all of these. The levels are what should arrive at the hub each minute for the next stages at Minimum, Ideal and Stretch.</td></tr>';
+      return body + "</tbody></table></div>";
+    }
     // Power: what these lines draw, the whole factory so far, and what to build with spare.
+    const early = gameTier(pi) < COAL_TIER;
     const plv = rateLevel(tid, POWER_ROW);
-    body += '<tr class="power-row"><td><strong>' + POWER_ROW + '</strong><div class="muted small">Build at least this much grid, 25% spare included</div></td>';
+    body += '<tr class="power-row"><td><strong>' + POWER_ROW + '</strong><div class="muted small">' + (PLAN.cumulative ? "Build at least this much grid, 25% spare included" : "Extra power these lines draw, 25% spare included") + "</div></td>";
     for (let i = 0; i < 3; i++) {
       const tierMw = tierLinesPower(pi, i), allMw = factoryPower(pi, i);
       const build = buildTarget(allMw);
-      body += '<td><button class="rate-btn' + (plv >= i ? " hit" : "") + '" data-ratelevel="' + esc(tid + "|" + POWER_ROW) + '" data-lv="' + LEVEL_ORDER[i] + '" title="Mark this much power built">' + (plv >= i ? "✓ " : "") + mw(build) + '</button><div class="muted small">Factory uses ~' + mw(allMw) + "<br>this tier's lines ~" + mw(tierMw) +
-        (pi < COAL_TIER ? "<br>= " + Math.ceil(build / 30) + " Biomass Burners" : "") + "</div></td>";
+      body += '<td><button class="rate-btn' + (plv >= i ? " hit" : "") + '" data-ratelevel="' + esc(tid + "|" + POWER_ROW) + '" data-lv="' + LEVEL_ORDER[i] + '" title="Mark this much power built">' + (plv >= i ? "✓ " : "") + mw(build) + '</button><div class="muted small">' +
+        (PLAN.cumulative ? "Factory uses ~" + mw(allMw) + "<br>this tier's lines ~" + mw(tierMw) : "These lines use ~" + mw(tierMw)) +
+        (early ? "<br>= " + Math.ceil(build / 30) + " Biomass Burners" : "") + "</div></td>";
     }
-    body += '<td class="muted small">Your whole factory so far at this level' + (pi < COAL_TIER ? ". Until Coal Power (Tier 3), burners are hand-fed, so it\'s fine to run lines in turns." : "") + "</td></tr>";
+    body += '<td class="muted small">' + (PLAN.cumulative ? "Your whole factory so far at this level" : "On top of what your grid already runs") + (early ? ". Until Coal Power (Tier 3), burners are hand-fed, so it\'s fine to run lines in turns." : "") + "</td></tr>";
     // Raw resources this tier's lines mine at each level.
     body += '<tr class="raw-row"><td><strong>⛏ Raw resources</strong><div class="muted small">Ore and water for this tier\'s lines</div></td>';
     for (let i = 0; i < 3; i++) {
       body += '<td class="small">' + tierRaw(pi, i).map(function (x) { return esc(x[0]) + " <b>" + fmt(Math.round(x[1] * 10) / 10) + "</b>"; }).join("<br>") + "</td>";
     }
-    body += '<td class="muted small">Per minute, standard recipes</td></tr>';
+    body += '<td class="muted small">Per minute, ' + (PLAN.useAlts ? "with your alternates" : "standard recipes") + "</td></tr>";
+    // Parts brought in from elsewhere (the Comeback plan's old base).
+    if (p.supplied) {
+      body += '<tr class="raw-row"><td><strong>📦 Brought in by train</strong><div class="muted small">From your old base</div></td>';
+      for (let i = 0; i < 3; i++) {
+        body += '<td class="small">' + tierSolve(pi, i).external.slice().sort(function (a, b) { return b[1] - a[1]; }).map(function (x) { return esc(x[0]) + " <b>" + fmt(Math.round(x[1] * 100) / 100) + "</b>"; }).join("<br>") + "</td>";
+      }
+      body += '<td class="muted small">Per minute, on top of anything else you use them for</td></tr>';
+    }
     return body + "</tbody></table></div>";
   }
   function ratesCount(pi) {
-    const tid = PHASES[pi].id;
-    const rows = (window.GOAL_RATES[tid] || []).map(function (r) { return r[0]; }).concat([POWER_ROW]);
-    return { hit: rows.filter(function (k) { return rateLevel(tid, k) >= 0; }).length, all: rows.length };
+    const p = PHASES[pi];
+    const rows = (PLAN.rates[p.id] || []).map(function (r) { return r[0]; });
+    if (rows.length && !p.delivery) rows.push(POWER_ROW);
+    return { hit: rows.filter(function (k) { return rateLevel(p.id, k) >= 0; }).length, all: rows.length };
   }
   function ratesTable(pi) {
     const body = ratesBody(pi);
@@ -1408,10 +1475,16 @@
   }
   function renderTargets() {
     const tt = targetTier();
-    let h = '<h1>Targets</h1><p class="muted">What to produce per minute in each tier, at three levels: <strong>Minimum</strong> to keep moving, <strong>Ideal</strong> to be comfortable, <strong>Stretch</strong> for a big, fast factory. Click a number to mark it reached, or 🏭 for the machines. Power includes 25% spare.</p>';
+    let h = planSwitch() + '<h1>Targets</h1><p class="muted">What to produce per minute in each ' + (PHASES[0].short ? "stage" : "tier") + ', at three levels: <strong>Minimum</strong> to keep moving, <strong>Ideal</strong> to be comfortable, <strong>Stretch</strong> for a big, fast factory. Click a number to mark it reached, or 🏭 for the machines. Power includes 25% spare.</p>';
     h += '<div class="toolbar"><div class="tool-group"><span class="focus-label">Show</span><span class="seg">' +
-      '<button data-tscope="tier" class="' + (state.targetScope === "tier" ? "active" : "") + '">This tier</button>' +
-      '<button data-tscope="all" class="' + (state.targetScope !== "tier" ? "active" : "") + '">All tiers</button></span></div></div>';
+      '<button data-tscope="tier" class="' + (state.targetScope === "tier" ? "active" : "") + '">This ' + (PHASES[0].short ? "stage" : "tier") + "</button>" +
+      '<button data-tscope="all" class="' + (state.targetScope !== "tier" ? "active" : "") + '">All ' + (PHASES[0].short ? "stages" : "tiers") + "</button></span></div></div>";
+    if (PLAN.overview) {
+      const cards = '<div class="rules">' + PLAN.overview.map(function (o) {
+        return '<div class="card"><h3>' + esc(o.title) + "</h3><ul>" + o.body.map(function (x) { return "<li>" + md(x) + "</li>"; }).join("") + "</ul></div>";
+      }).join("") + "</div>";
+      h += section("overview:" + PLAN.id, "🗺 The plan at a glance", PLAN.overview.length + " parts", cards, "phase");
+    }
     PHASES.forEach(function (p, pi) {
       if (state.targetScope === "tier" && pi !== tt) return;
       const c = ratesCount(pi);
@@ -1422,11 +1495,15 @@
     return h;
   }
 
-  // A quick machine plan for any item at any rate (standard recipes plus alternates you own that fit).
-  function rateMission(item, rate) {
+  // A quick machine plan for any item at any rate: standard recipes, or the plan's alternates you
+  // own, with the tier's supplied parts brought in.
+  function rateMission(item, rate, pi) {
+    const t = {};
+    t[item] = rate;
+    const p = PHASES[pi] || {};
     return {
       id: "rate:" + item + ":" + rate, kind: "production", title: fmt(rate) + " " + item + " per minute",
-      steps: [""], calc: { targets: (function () { const t = {}; t[item] = rate; return t; })() },
+      steps: [""], calc: { targets: t, useAlts: PLAN.useAlts, supplied: p.supplied },
     };
   }
 
@@ -1453,10 +1530,10 @@
     const pb = powerBudget();
     const power = pb.built > 0
       ? '<span class="' + (pb.used > pb.built ? "bad" : "") + '">⚡ ' + mw(pb.used) + " / " + mw(pb.built) + "</span>"
-      : "⚡ " + mw(pb.used) + " on the HUB burner";
+      : "⚡ " + mw(pb.used) + (PHASES[0].short ? " planned" : " on the HUB burner");
     const buildEl = document.getElementById("build");
     if (buildEl) buildEl.textContent = "Version " + (window.BUILD || "local copy");
-    document.getElementById("overall").innerHTML = o.done + " / " + o.all + " main quests · " + pct(o.done, o.all) + "% · " + power + ' · <span class="sync">' + syncLabel() + "</span>";
+    document.getElementById("overall").innerHTML = (PLANS.length > 1 ? PLAN.icon + " " + esc(PLAN.label) + " · " : "") + o.done + " / " + o.all + " main quests · " + pct(o.done, o.all) + "% · " + power + ' · <span class="sync">' + syncLabel() + "</span>";
     const nwrap = viewEl.querySelector(".diagram-wrap");
     if (keep && nwrap) { nwrap.scrollLeft = keep.l; nwrap.scrollTop = keep.t; }
     else if (view === "mind" && nwrap) centerMind(nwrap);
@@ -1522,7 +1599,10 @@
     const panel = drawer.querySelector(".drawer-panel");
     const st = panel.scrollTop;
     if (drawerRate) {
-      body.innerHTML = '<div class="card"><div class="eyebrow">Production target</div><h1>' + esc(drawerRate.title) + '</h1><p class="muted">Standard recipes, with everything made on site from raw resources. Use it as a starting point and change anything you like.</p>' + calcBox(drawerRate) + "</div>";
+      const how = drawerRate.calc.supplied
+        ? "Your alternates, with the old base's parts brought in by train and the rest made on site."
+        : drawerRate.calc.useAlts ? "Your alternates, with everything made on site from raw resources." : "Standard recipes, with everything made on site from raw resources.";
+      body.innerHTML = '<div class="card"><div class="eyebrow">Production target</div><h1>' + esc(drawerRate.title) + '</h1><p class="muted">' + how + " Use it as a starting point and change anything you like.</p>" + calcBox(drawerRate) + "</div>";
       panel.scrollTop = st;
       return;
     }
@@ -1607,9 +1687,14 @@
   });
 
   document.addEventListener("click", function (e) {
-    const t = e.target.closest("[data-tscope],[data-ratelevel],[data-ratecalc],[data-glayout],[data-gscope],[data-gtag],[data-cstep],[data-qtoggle],[data-unqueue],[data-layout],[data-scope],[data-tag],[data-view],[data-open],[data-done],[data-undo],[data-skip],[data-unskip],[data-dismiss],[data-calcmode],[data-close],[data-focus],[data-resetorder],[data-move],[data-delroute],#copy,#load,#reset,#reset-yes,#reset-no");
+    const t = e.target.closest("[data-plan],[data-ownalts],[data-tscope],[data-ratelevel],[data-ratecalc],[data-glayout],[data-gscope],[data-gtag],[data-cstep],[data-qtoggle],[data-unqueue],[data-layout],[data-scope],[data-tag],[data-view],[data-open],[data-done],[data-undo],[data-skip],[data-unskip],[data-dismiss],[data-calcmode],[data-close],[data-focus],[data-resetorder],[data-move],[data-delroute],#copy,#load,#reset,#reset-yes,#reset-no");
     if (!t) return;
     if (t.tagName === "A") e.preventDefault();
+    if (t.dataset.plan) { state.plan = t.dataset.plan; usePlan(state.plan); save(); render(); return; }
+    if (t.hasAttribute("data-ownalts")) {
+      PLAN.ownedAlts.forEach(function (a) { setOwned(a, true); });
+      save(); render(); return;
+    }
     if (t.dataset.layout) { state.listLayout = t.dataset.layout; save(); render(); return; }
     if (t.dataset.glayout) { state.goalLayout = t.dataset.glayout; save(); render(); return; }
     if (t.dataset.tscope) { state.targetScope = t.dataset.tscope; save(); render(); return; }
@@ -1624,7 +1709,7 @@
       save(); goalCelebrate(null, before); render(); return;
     }
     if (t.dataset.ratecalc) {
-      drawerRate = rateMission(t.dataset.ratecalc, +t.dataset.rate);
+      drawerRate = rateMission(t.dataset.ratecalc, +t.dataset.rate, +t.dataset.tier);
       drawerId = drawerRate.id;
       drawer.hidden = false;
       renderDrawer(); return;
@@ -1685,6 +1770,7 @@
         const data = JSON.parse(document.getElementById("backup").value);
         if (!data || typeof data.steps !== "object") throw new Error("not a progress code");
         state = fresh(Object.assign({}, data, { view: "settings" }));
+        usePlan(state.plan);
         save();
         backupMsg = "Progress loaded.";
       } catch (err) {
@@ -1694,7 +1780,7 @@
     } else if (t.id === "reset") { resetArmed = true; render(); }
     else if (t.id === "reset-no") { resetArmed = false; render(); }
     else if (t.id === "reset-yes") {
-      state = fresh({ view: "settings" });
+      state = fresh({ view: "settings", plan: state.plan });
       resetArmed = false;
       backupMsg = "Everything unticked.";
       save(); render();
