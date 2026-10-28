@@ -9,11 +9,12 @@
   // A new object every time, so saved ticks never leak into the starting state.
   function fresh(over) {
     return Object.assign({
-      steps: {}, alts: [], spoilers: false, view: "now", focus: "balanced",
+      steps: {}, alts: [], spoilers: false, view: "goals", focus: "balanced",
       order: {}, rates: {}, tierPower: {}, builtWith: {}, skipped: {}, dismissed: {},
       notes: {}, routes: [], calcIn: {},
       listLayout: "stacked", listScope: "all", hideDone: false, tagFilter: [],
       queue: [], collapsed: {},
+      goals: {}, counters: {}, goalLayout: "level", goalScope: "all", goalHideDone: false, goalTags: [],
     }, over || {});
   }
   let state = load();
@@ -1192,11 +1193,103 @@
     return h;
   }
 
+  // ---------- goals tab: what to achieve per tier, not how ----------
+  function counterValue(id) { return id === "alts" ? state.alts.length : (+state.counters[id] || 0); }
+  function goalDone(goal) { return goal.counter ? counterValue(goal.counter) >= goal.target : !!state.goals[goal.id]; }
+  function goalsOf(pi) { return window.GOALS[PHASES[pi].id] || []; }
+  function goalTier() {
+    for (let pi = 0; pi < PHASES.length; pi++) {
+      if (goalsOf(pi).some(function (x) { return x.level === "mandatory" && !goalDone(x); })) return pi;
+    }
+    return PHASES.length - 1;
+  }
+  function goalTierVisible(pi) { return state.spoilers || pi <= Math.max(goalTier(), currentTier()); }
+  function goalKeep(goal) {
+    if (state.goalHideDone && goalDone(goal)) return false;
+    if (state.goalTags.length && state.goalTags.indexOf(goal.tag) === -1) return false;
+    return true;
+  }
+
+  function countersPanel() {
+    let h = '<div class="counters">';
+    window.GOAL_COUNTERS.forEach(function (c) {
+      const v = counterValue(c.id);
+      let next = null;
+      PHASES.forEach(function (p) { goalsOf(PHASES.indexOf(p)).forEach(function (x) { if (x.counter === c.id && x.target > v && (!next || x.target < next.target)) next = { target: x.target, tier: PHASES.indexOf(p) }; }); });
+      h += '<div class="counter"><div class="counter-label">' + c.icon + " " + esc(c.label) + "</div>";
+      if (c.auto) h += '<div class="counter-row"><span class="counter-value">' + v + '</span><button class="btn small" data-view="alts">Tick on Alternates tab</button></div>';
+      else h += '<div class="counter-row"><button class="icon-btn big" data-cstep="' + c.id + '" data-d="-1" aria-label="One less">−</button><input type="number" min="0" id="counter-' + c.id + '" data-counter="' + c.id + '" value="' + v + '"><button class="icon-btn big" data-cstep="' + c.id + '" data-d="1" aria-label="One more">+</button></div>';
+      h += '<div class="muted small">' + (next ? "Next goal: " + next.target + " (Tier " + next.tier + ")" : "Every goal reached") + "</div></div>";
+    });
+    return h + "</div>";
+  }
+
+  function goalRow(goal) {
+    const done = goalDone(goal);
+    const lvl = window.GOAL_LEVELS.find(function (l) { return l.id === goal.level; });
+    let h = '<div class="goal-item lvl-' + goal.level + (done ? " done" : "") + '">';
+    if (goal.counter) {
+      const v = counterValue(goal.counter);
+      h += '<span class="goal-check auto" title="Ticks itself from the counter above">' + (done ? "✓" : "") + "</span>";
+      h += '<span class="goal-text">' + esc(goal.text) + '<span class="goal-progress"><span class="meter"><span style="width:' + Math.min(100, pct(v, goal.target)) + '%"></span></span> ' + Math.min(v, goal.target) + "/" + goal.target + "</span></span>";
+    } else {
+      h += '<input type="checkbox" class="goal-check" id="goal-' + esc(goal.id) + '" data-goal="' + esc(goal.id) + '"' + (done ? " checked" : "") + ">";
+      h += '<label class="goal-text" for="goal-' + esc(goal.id) + '">' + esc(goal.text) + "</label>";
+    }
+    h += '<span class="goal-tags"><span class="tag lvl-tag">' + lvl.icon + " " + lvl.label + '</span><span class="tag">' + KIND_ICON[goal.tag] + " " + esc(kindLabel(goal.tag)) + "</span></span>";
+    return h + "</div>";
+  }
+
+  function renderGoals() {
+    let h = '<h1>Goals</h1><p class="muted">What to achieve in each tier, not how. Do them in any order. 🔴 Mandatory is the core path, 🔵 Encouraged is good practice for how you play, ⚪ Optional is fun and extras. Counter goals tick themselves.</p>';
+    h += countersPanel();
+    h += '<div class="toolbar">';
+    h += '<div class="tool-group"><span class="focus-label">Layout</span><span class="seg">' +
+      '<button data-glayout="level" class="' + (state.goalLayout !== "columns" ? "active" : "") + '">By level</button>' +
+      '<button data-glayout="columns" class="' + (state.goalLayout === "columns" ? "active" : "") + '">Columns</button></span></div>';
+    h += '<div class="tool-group"><span class="focus-label">Show</span><span class="seg">' +
+      '<button data-gscope="tier" class="' + (state.goalScope === "tier" ? "active" : "") + '">This tier</button>' +
+      '<button data-gscope="all" class="' + (state.goalScope !== "tier" ? "active" : "") + '">All unlocked tiers</button></span>' +
+      '<label class="check"><input type="checkbox" id="goal-hide-done"' + (state.goalHideDone ? " checked" : "") + "> Hide done</label></div>";
+    h += '<div class="tool-group tags"><span class="focus-label">Tags</span>' + listTags().map(function (t) {
+      const on = state.goalTags.indexOf(t.id) !== -1;
+      return '<button class="chip-btn' + (on ? " active" : "") + '" data-gtag="' + t.id + '">' + t.icon + " " + esc(t.label) + "</button>";
+    }).join("") + (state.goalTags.length ? '<button class="chip-btn ghost" data-gtag="">✕ Clear tags</button>' : "") + "</div></div>";
+
+    const gt = goalTier();
+    let shownLocked = false;
+    PHASES.forEach(function (p, pi) {
+      if (!goalTierVisible(pi)) {
+        if (!shownLocked && state.goalScope !== "tier") {
+          h += '<div class="locked-phase">🔒 <strong>' + esc(p.tier) + "</strong> opens when the 🔴 mandatory goals above are done.</div>";
+          shownLocked = true;
+        }
+        return;
+      }
+      if (state.goalScope === "tier" && pi !== gt) return;
+      const all = goalsOf(pi);
+      const mand = all.filter(function (x) { return x.level === "mandatory"; });
+      const shown = all.filter(goalKeep);
+      const parts = window.GOAL_LEVELS.map(function (l) {
+        const ls = shown.filter(function (x) { return x.level === l.id; });
+        const body = ls.map(goalRow).join("") || '<div class="muted small empty">Nothing here with these filters.</div>';
+        return section("goals:" + p.id + ":" + l.id, l.icon + " " + l.label + ' <span class="muted small">' + esc(l.hint) + "</span>", doneOf2(ls), body, "goal-sect");
+      });
+      const body = '<div class="progress"><div style="width:' + pct(mand.filter(goalDone).length, mand.length) + '%"></div></div>' +
+        (state.goalLayout === "columns" ? '<div class="three-col">' + parts.map(function (x) { return '<div class="col">' + x + "</div>"; }).join("") + "</div>" : parts.join(""));
+      const title = '<span class="eyebrow">' + esc(p.tier) + '</span><span class="tier-name">' + esc(p.title) + "</span>";
+      const count = mand.filter(goalDone).length + "/" + mand.length + " mandatory · " + all.filter(goalDone).length + "/" + all.length + " all";
+      h += section("goals:" + p.id, title, count, body, "phase", pi < gt && state.goalScope !== "tier");
+    });
+    return h;
+  }
+  function doneOf2(goals) { return goals.filter(goalDone).length + "/" + goals.length; }
+
   // ---------- render ----------
   let resetArmed = false;
   let backupMsg = "";
   const viewEl = document.getElementById("view");
-  const VIEWS = { now: renderNow, list: renderList, flow: renderFlow, mind: renderMind, logistics: renderLogistics, alts: renderAlts, rules: renderRules, stats: renderStats, settings: renderSettings };
+  const VIEWS = { goals: renderGoals, now: renderNow, list: renderList, flow: renderFlow, mind: renderMind, logistics: renderLogistics, alts: renderAlts, rules: renderRules, stats: renderStats, settings: renderSettings };
   let lastView = null;
 
   function render() {
@@ -1207,7 +1300,7 @@
     const wrap = viewEl.querySelector(".diagram-wrap");
     const keep = view === lastView && wrap ? { l: wrap.scrollLeft, t: wrap.scrollTop } : null;
     const sy = window.scrollY;
-    const wideList = view === "list" && state.listLayout !== "stacked";
+    const wideList = (view === "list" && state.listLayout !== "stacked") || (view === "goals" && state.goalLayout === "columns");
     viewEl.className = view === "mind" || view === "flow" || wideList ? "wide" : "";
     viewEl.innerHTML = VIEWS[view]();
     document.querySelectorAll("#tabs button").forEach(function (b) { b.classList.toggle("active", b.dataset.view === view); });
@@ -1233,6 +1326,16 @@
   }
 
   // ---------- celebration ----------
+  function goalCelebrate(goalId, tierBefore) {
+    const after = goalTier();
+    if (after > tierBefore) {
+      celebrate({ id: "goal-tier", title: "All mandatory goals in " + PHASES[tierBefore].title + " done! " + PHASES[after].tier + " goals are open." });
+    } else if (goalId) {
+      let text = "Goal done";
+      PHASES.forEach(function (p, pi) { goalsOf(pi).forEach(function (x) { if (x.id === goalId) text = x.text; }); });
+      celebrate({ id: "goal", title: text });
+    }
+  }
   const toastEl = document.getElementById("toast");
   let toastTimer = null;
   function celebrate(m) {
@@ -1305,6 +1408,19 @@
       save(); render();
     } else if (t.id === "spoilers") { state.spoilers = t.checked; save(); render(); }
     else if (t.id === "hide-done") { state.hideDone = t.checked; save(); render(); }
+    else if (t.id === "goal-hide-done") { state.goalHideDone = t.checked; save(); render(); }
+    else if (t.dataset.goal) {
+      const before = goalTier();
+      state.goals[t.dataset.goal] = t.checked;
+      if (!t.checked) delete state.goals[t.dataset.goal];
+      save();
+      if (t.checked) goalCelebrate(t.dataset.goal, before);
+      render();
+    } else if (t.dataset.counter) {
+      const before = goalTier();
+      state.counters[t.dataset.counter] = Math.max(0, parseInt(t.value, 10) || 0);
+      save(); goalCelebrate(null, before); render();
+    }
     else if (t.dataset.rate) {
       const v = parseFloat(t.value);
       if (v > 0) state.rates[t.dataset.rate] = v; else delete state.rates[t.dataset.rate];
@@ -1338,10 +1454,25 @@
   });
 
   document.addEventListener("click", function (e) {
-    const t = e.target.closest("[data-qtoggle],[data-unqueue],[data-layout],[data-scope],[data-tag],[data-view],[data-open],[data-done],[data-undo],[data-skip],[data-unskip],[data-dismiss],[data-calcmode],[data-close],[data-focus],[data-resetorder],[data-move],[data-delroute],#copy,#load,#reset,#reset-yes,#reset-no");
+    const t = e.target.closest("[data-glayout],[data-gscope],[data-gtag],[data-cstep],[data-qtoggle],[data-unqueue],[data-layout],[data-scope],[data-tag],[data-view],[data-open],[data-done],[data-undo],[data-skip],[data-unskip],[data-dismiss],[data-calcmode],[data-close],[data-focus],[data-resetorder],[data-move],[data-delroute],#copy,#load,#reset,#reset-yes,#reset-no");
     if (!t) return;
     if (t.tagName === "A") e.preventDefault();
     if (t.dataset.layout) { state.listLayout = t.dataset.layout; save(); render(); return; }
+    if (t.dataset.glayout) { state.goalLayout = t.dataset.glayout; save(); render(); return; }
+    if (t.dataset.gscope) { state.goalScope = t.dataset.gscope; save(); render(); return; }
+    if (t.dataset.gtag !== undefined) {
+      const tg = t.dataset.gtag;
+      if (!tg) state.goalTags = [];
+      else if (state.goalTags.indexOf(tg) === -1) state.goalTags = state.goalTags.concat([tg]);
+      else state.goalTags = state.goalTags.filter(function (x) { return x !== tg; });
+      save(); render(); return;
+    }
+    if (t.dataset.cstep) {
+      const before = goalTier();
+      const c = t.dataset.cstep;
+      state.counters[c] = Math.max(0, (+state.counters[c] || 0) + (+t.dataset.d));
+      save(); goalCelebrate(null, before); render(); return;
+    }
     if (t.dataset.scope) { state.listScope = t.dataset.scope; save(); render(); return; }
     if (t.dataset.tag !== undefined) {
       const tg = t.dataset.tag;

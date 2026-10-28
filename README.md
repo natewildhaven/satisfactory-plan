@@ -2,7 +2,8 @@
 
 A personal, one-step-at-a-time guide from landing in the Rocky Desert to Project Assembly (Satisfactory 1.x, Peaceful mode).
 
-- **Now** shows your current mission, the focus picker, the tier's goal board (editable target rates and power goal) and every other mission in the tier. Drag or use ▲▼ to reorder; missions never move ahead of what they depend on.
+- **Goals** is a tier-by-tier checklist of what to achieve, not how: 🔴 mandatory, 🔵 encouraged and ⚪ optional goals with tags, plus counters for Mercer Spheres, Somersloops, hard drives, Power Shards and alternates that tick their goals automatically.
+- **Quests** shows your current quest, the focus picker, the tier's goal board (editable target rates and power goal) and every other mission in the tier. Drag or use ▲▼ to reorder; missions never move ahead of what they depend on.
 - **My queue**: press **+ Queue** on any quest to line it up. The queue sits at the top of Now and List, can be dragged into any order, and the first ready quest in it becomes your current quest.
 - **List** has five layouts (Stacked, Main | Side, By tag, By status, Table), tag filters and a hide-done toggle. Every section collapses and shows a count. **Flowchart** and **Mind map** show the same progress as diagrams.
 - Every factory mission has a **machine box**: a floor-by-floor plan, a table and a flow diagram, with exact clocks, raw ore/min, what to bring in, byproducts and power.
@@ -27,6 +28,7 @@ Progress is saved per browser and per address, so keep using the same one. To mo
 | File | What it is |
 | --- | --- |
 | `js/missions.js` | The guide content: phases, missions, side quests, rules |
+| `js/goals.js` | The Goals tab checklist and counters |
 | `js/solver.js` | Production math (machine counts, clocks, byproduct netting) |
 | `js/recipes.js` | Recipe data, generated. Don't edit by hand. |
 | `js/app.js` | The UI and views |

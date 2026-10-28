@@ -8,6 +8,7 @@ const root = path.join(__dirname, "..");
 require(path.join(root, "js/recipes.js"));
 require(path.join(root, "js/solver.js"));
 require(path.join(root, "js/missions.js"));
+require(path.join(root, "js/goals.js"));
 const { GAME, Solver, PHASES, ALTS, FOCUS } = window;
 
 let checks = 0;
@@ -61,6 +62,23 @@ function reaches(from, target, seen = new Set()) {
 for (const m of allMissions) ok(!reaches(m.id, m.id), `${m.id}: no dependency cycle`);
 for (const a of ALTS) ok(GAME.recipes[a.name], `alternate ${a.name} exists`);
 ok(Object.keys(GAME.stack).length > 50, "stack sizes present");
+
+// Goals
+const levels = new Set(window.GOAL_LEVELS.map((l) => l.id));
+const counters = new Set(window.GOAL_COUNTERS.map((c) => c.id));
+const goalIds = new Set();
+for (const p of PHASES) {
+  const gs = window.GOALS[p.id];
+  ok(gs && gs.length >= 10, `${p.id}: has at least 10 goals`);
+  ok(gs.some((x) => x.level === "mandatory"), `${p.id}: has mandatory goals`);
+  for (const x of gs) {
+    ok(!goalIds.has(x.id), `unique goal id ${x.id}`);
+    goalIds.add(x.id);
+    ok(levels.has(x.level), `${x.id}: known level`);
+    ok(kinds.has(x.tag), `${x.id}: known tag ${x.tag}`);
+    if (x.counter) ok(counters.has(x.counter) && x.target > 0, `${x.id}: counter goal well formed`);
+  }
+}
 
 // Known answers
 function step(r, recipe) { return r.steps.find((s) => s.recipe === recipe); }
