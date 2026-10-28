@@ -9,12 +9,12 @@
   // A new object every time, so saved ticks never leak into the starting state.
   function fresh(over) {
     return Object.assign({
-      steps: {}, alts: [], spoilers: false, view: "goals", focus: "balanced",
+      steps: {}, alts: [], spoilers: false, view: "targets", focus: "balanced",
       order: {}, rates: {}, tierPower: {}, builtWith: {}, skipped: {}, dismissed: {},
       notes: {}, routes: [], calcIn: {},
       listLayout: "stacked", listScope: "all", hideDone: false, tagFilter: [],
       queue: [], collapsed: {},
-      goals: {}, counters: {}, rateLevels: {}, goalLayout: "level", goalScope: "all", goalHideDone: false, goalTags: [],
+      goals: {}, counters: {}, rateLevels: {}, targetScope: "all", goalLayout: "level", goalScope: "all", goalHideDone: false, goalTags: [],
     }, over || {});
   }
   let state = load();
@@ -1204,6 +1204,7 @@
       ? '<button class="btn danger" id="reset-yes">Yes, untick everything</button><button class="btn" id="reset-no">Keep my progress</button>'
       : '<button class="btn" id="reset">Reset everything</button>';
     h += '</div><div class="muted" id="backup-msg" role="status">' + esc(backupMsg) + "</div></div>";
+    h += '<div class="card"><h2>Version</h2><p>This copy: <strong>' + esc(window.BUILD || "local copy") + '</strong></p><p class="muted">If two devices show different versions, reload the older one. On an iPad, close the tab (or the Home Screen app) and open the link again.</p></div>';
     h += '<div class="card"><h2>About the numbers</h2><p class="muted">Recipes come from Satisfactory 1.x game data (via SatisfactoryTools). Clock speeds assume 100% = the recipe\'s base rate with no power shards. If something in-game disagrees, the game wins.</p></div>';
     return h;
   }
@@ -1318,7 +1319,39 @@
   function doneOf2(goals) { return goals.filter(goalDone).length + "/" + goals.length; }
 
   // Production targets: click a number to mark that level reached; 🏭 opens the machines for it.
-  function ratesTable(pi) {
+  // Power and raw resources for a tier's production targets at each level.
+  const SPARE = 1.25; // build 25% more power than the lines need
+  const POWER_ROW = "⚡ Power";
+  const rateSolveCache = {};
+  function solveTargets(t) {
+    const k = JSON.stringify(t);
+    if (!rateSolveCache[k]) rateSolveCache[k] = window.Solver.solve(t, []);
+    return rateSolveCache[k];
+  }
+  function solveRate(item, rate) { const t = {}; t[item] = rate; return solveTargets(t); }
+  function tierTargets(pi, lvl) {
+    const t = {};
+    (window.GOAL_RATES[PHASES[pi].id] || []).forEach(function (r) { t[r[0]] = r[1 + lvl]; });
+    return t;
+  }
+  // The whole factory at one level: every tier so far, with each material at its latest tier's
+  // target (Tier 1's scaled-up iron replaces Tier 0's, it doesn't add to it). Solved together,
+  // so shared parts are only counted once.
+  function factoryTargets(pi, lvl) {
+    const t = {};
+    for (let i = 0; i <= pi; i++) Object.assign(t, tierTargets(i, lvl));
+    return t;
+  }
+  function tierLinesPower(pi, lvl) { return solveTargets(tierTargets(pi, lvl)).power; }
+  function factoryPower(pi, lvl) { return solveTargets(factoryTargets(pi, lvl)).power; }
+  function buildTarget(mw) { return Math.max(30, Math.ceil((mw * SPARE) / 10) * 10); }
+  function tierRaw(pi, lvl) {
+    return solveTargets(tierTargets(pi, lvl)).raw.slice().sort(function (a, b) { return b[1] - a[1]; });
+  }
+  const COAL_TIER = 3; // before Coal Power, the grid is Biomass Burners (30 MW each)
+
+  // The production targets table: click a number to mark that level reached; 🏭 opens the machines for it.
+  function ratesBody(pi) {
     const tid = PHASES[pi].id;
     const rows = window.GOAL_RATES[tid] || [];
     if (!rows.length) return "";
@@ -1335,9 +1368,58 @@
       }
       body += '<td class="muted small">' + (r[4] ? "Space Elevator needs " + r[4] : "") + "</td></tr>";
     });
-    body += "</tbody></table></div>";
-    const hit = rows.filter(function (r) { return rateLevel(tid, r[0]) >= 0; }).length;
-    return section("goals:" + tid + ":rates", "📈 Production targets", hit + "/" + rows.length, body, "rates-sect");
+    // Power: what these lines draw, the whole factory so far, and what to build with spare.
+    const plv = rateLevel(tid, POWER_ROW);
+    body += '<tr class="power-row"><td><strong>' + POWER_ROW + '</strong><div class="muted small">Build at least this much grid, 25% spare included</div></td>';
+    for (let i = 0; i < 3; i++) {
+      const tierMw = tierLinesPower(pi, i), allMw = factoryPower(pi, i);
+      const build = buildTarget(allMw);
+      body += '<td><button class="rate-btn' + (plv >= i ? " hit" : "") + '" data-ratelevel="' + esc(tid + "|" + POWER_ROW) + '" data-lv="' + LEVEL_ORDER[i] + '" title="Mark this much power built">' + (plv >= i ? "✓ " : "") + mw(build) + '</button><div class="muted small">Factory uses ~' + mw(allMw) + "<br>this tier's lines ~" + mw(tierMw) +
+        (pi < COAL_TIER ? "<br>= " + Math.ceil(build / 30) + " Biomass Burners" : "") + "</div></td>";
+    }
+    body += '<td class="muted small">Your whole factory so far at this level' + (pi < COAL_TIER ? ". Until Coal Power (Tier 3), burners are hand-fed, so it\'s fine to run lines in turns." : "") + "</td></tr>";
+    // Raw resources this tier's lines mine at each level.
+    body += '<tr class="raw-row"><td><strong>⛏ Raw resources</strong><div class="muted small">Ore and water for this tier\'s lines</div></td>';
+    for (let i = 0; i < 3; i++) {
+      body += '<td class="small">' + tierRaw(pi, i).map(function (x) { return esc(x[0]) + " <b>" + fmt(Math.round(x[1] * 10) / 10) + "</b>"; }).join("<br>") + "</td>";
+    }
+    body += '<td class="muted small">Per minute, standard recipes</td></tr>';
+    return body + "</tbody></table></div>";
+  }
+  function ratesCount(pi) {
+    const tid = PHASES[pi].id;
+    const rows = (window.GOAL_RATES[tid] || []).map(function (r) { return r[0]; }).concat([POWER_ROW]);
+    return { hit: rows.filter(function (k) { return rateLevel(tid, k) >= 0; }).length, all: rows.length };
+  }
+  function ratesTable(pi) {
+    const body = ratesBody(pi);
+    if (!body) return "";
+    const c = ratesCount(pi);
+    return section("goals:" + PHASES[pi].id + ":rates", "📈 Production targets", c.hit + "/" + c.all, body, "rates-sect");
+  }
+
+  // ---------- targets tab: the production table as the main guide ----------
+  function targetTier() {
+    for (let pi = 0; pi < PHASES.length; pi++) {
+      const c = ratesCount(pi);
+      if (c.all && c.hit < c.all) return pi;
+    }
+    return PHASES.length - 1;
+  }
+  function renderTargets() {
+    const tt = targetTier();
+    let h = '<h1>Targets</h1><p class="muted">What to produce per minute in each tier, at three levels: <strong>Minimum</strong> to keep moving, <strong>Ideal</strong> to be comfortable, <strong>Stretch</strong> for a big, fast factory. Click a number to mark it reached, or 🏭 for the machines. Power includes 25% spare.</p>';
+    h += '<div class="toolbar"><div class="tool-group"><span class="focus-label">Show</span><span class="seg">' +
+      '<button data-tscope="tier" class="' + (state.targetScope === "tier" ? "active" : "") + '">This tier</button>' +
+      '<button data-tscope="all" class="' + (state.targetScope !== "tier" ? "active" : "") + '">All tiers</button></span></div></div>';
+    PHASES.forEach(function (p, pi) {
+      if (state.targetScope === "tier" && pi !== tt) return;
+      const c = ratesCount(pi);
+      if (!c.all) return;
+      const title = '<span class="eyebrow">' + esc(p.tier) + '</span><span class="tier-name">' + esc(p.title) + "</span>";
+      h += section("targets:" + p.id, title, c.hit + "/" + c.all + " at minimum or better", '<div class="rates-sect plain">' + ratesBody(pi) + "</div>", "phase", pi !== tt);
+    });
+    return h;
   }
 
   // A quick machine plan for any item at any rate (standard recipes plus alternates you own that fit).
@@ -1352,7 +1434,7 @@
   let resetArmed = false;
   let backupMsg = "";
   const viewEl = document.getElementById("view");
-  const VIEWS = { goals: renderGoals, now: renderNow, list: renderList, flow: renderFlow, mind: renderMind, logistics: renderLogistics, alts: renderAlts, rules: renderRules, stats: renderStats, settings: renderSettings };
+  const VIEWS = { targets: renderTargets, goals: renderGoals, now: renderNow, list: renderList, flow: renderFlow, mind: renderMind, logistics: renderLogistics, alts: renderAlts, rules: renderRules, stats: renderStats, settings: renderSettings };
   let lastView = null;
 
   function render() {
@@ -1372,6 +1454,8 @@
     const power = pb.built > 0
       ? '<span class="' + (pb.used > pb.built ? "bad" : "") + '">⚡ ' + mw(pb.used) + " / " + mw(pb.built) + "</span>"
       : "⚡ " + mw(pb.used) + " on the HUB burner";
+    const buildEl = document.getElementById("build");
+    if (buildEl) buildEl.textContent = "Version " + (window.BUILD || "local copy");
     document.getElementById("overall").innerHTML = o.done + " / " + o.all + " main quests · " + pct(o.done, o.all) + "% · " + power + ' · <span class="sync">' + syncLabel() + "</span>";
     const nwrap = viewEl.querySelector(".diagram-wrap");
     if (keep && nwrap) { nwrap.scrollLeft = keep.l; nwrap.scrollTop = keep.t; }
@@ -1523,11 +1607,12 @@
   });
 
   document.addEventListener("click", function (e) {
-    const t = e.target.closest("[data-ratelevel],[data-ratecalc],[data-glayout],[data-gscope],[data-gtag],[data-cstep],[data-qtoggle],[data-unqueue],[data-layout],[data-scope],[data-tag],[data-view],[data-open],[data-done],[data-undo],[data-skip],[data-unskip],[data-dismiss],[data-calcmode],[data-close],[data-focus],[data-resetorder],[data-move],[data-delroute],#copy,#load,#reset,#reset-yes,#reset-no");
+    const t = e.target.closest("[data-tscope],[data-ratelevel],[data-ratecalc],[data-glayout],[data-gscope],[data-gtag],[data-cstep],[data-qtoggle],[data-unqueue],[data-layout],[data-scope],[data-tag],[data-view],[data-open],[data-done],[data-undo],[data-skip],[data-unskip],[data-dismiss],[data-calcmode],[data-close],[data-focus],[data-resetorder],[data-move],[data-delroute],#copy,#load,#reset,#reset-yes,#reset-no");
     if (!t) return;
     if (t.tagName === "A") e.preventDefault();
     if (t.dataset.layout) { state.listLayout = t.dataset.layout; save(); render(); return; }
     if (t.dataset.glayout) { state.goalLayout = t.dataset.glayout; save(); render(); return; }
+    if (t.dataset.tscope) { state.targetScope = t.dataset.tscope; save(); render(); return; }
     if (t.dataset.ratelevel) {
       const before = goalTier();
       const k = t.dataset.ratelevel;

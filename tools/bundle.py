@@ -6,8 +6,10 @@ Usage: python3 tools/bundle.py out.html [--fragment]
 --fragment drops the <!doctype>/<html>/<head>/<body> wrapper, for hosts that
 add their own (such as a claude.ai Artifact).
 """
+import datetime
 import os
 import re
+import subprocess
 import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -30,6 +32,13 @@ def main(out, fragment):
         lambda m: "<script>\n" + read(m.group(1)).replace("</script", "<\\/script") + "</script>",
         html,
     )
+    # Stamp the build so you can tell which version a device is showing.
+    try:
+        commit = subprocess.check_output(["git", "-C", ROOT, "rev-parse", "--short", "HEAD"], text=True).strip()
+    except Exception:
+        commit = "?"
+    stamp = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d %H:%M UTC") + " (" + commit + ")"
+    html = html.replace('<script>\n', '<script>window.BUILD = %s;</script>\n<script>\n' % repr(stamp).replace("'", '"'), 1)
     if fragment:
         head = re.search(r"<head>(.*?)</head>", html, re.S).group(1)
         body = re.search(r"<body>(.*?)</body>", html, re.S).group(1)

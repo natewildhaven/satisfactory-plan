@@ -228,6 +228,13 @@ svg text { font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif
 .rate-chip.hit { border-color: var(--done); color: #cfe9d6; }
 .rates-sect { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 4px 12px 8px; }
 
+/* Targets tab */
+.rates-table .power-row td, .rates-table .raw-row td { background: #ffffff06; vertical-align: top; }
+.rates-table .power-row .rate-btn { min-width: 96px; }
+.rates-table .raw-row b { font-family: var(--font-mono); font-weight: 600; }
+.rates-sect.plain { padding-top: 8px; }
+.build { text-align: center; color: var(--locked); font-size: 12px; padding: 0 16px 24px; }
+
 /* Alternates by tier */
 .alt-row { border-bottom: 1px solid var(--line); }
 .alt-row.owned strong { color: var(--done); }
